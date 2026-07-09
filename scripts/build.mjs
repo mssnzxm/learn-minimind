@@ -229,9 +229,9 @@ function renderHomePage() {
       <main class="home-layout">
         <section class="hero">
           <div>
-            <div class="eyebrow">Static Tutorial Library</div>
+            <div class="eyebrow">Learning Library</div>
             <h1>MiniMind 系列学习教程</h1>
-            <p>这是一个纯静态教程站：主教程由 Markdown 构建为 HTML，配套 Python 示例、课程静态站、MiniMind-V 和 MiniMind-O 专题教程都可以通过同一个 Cloudflare 静态部署访问。</p>
+            <p>围绕 MiniMind 主线教程、配套 Python 示例、课程导览、MiniMind-V 和 MiniMind-O 专题内容，整理出一条从模型结构到训练推理的学习路径。</p>
             <div class="button-row">
               <a class="button" href="/chapters/01-architecture-overview/">开始阅读主教程</a>
               <a class="button secondary" href="/course/">打开学习课程站</a>
@@ -248,7 +248,7 @@ function renderHomePage() {
             <a class="card" href="/course/">
               <span class="tag">Course</span>
               <h3>MiniMind 学习课程站</h3>
-              <p>训练流程、数据样例、实验曲线、资源图谱和部署入口。</p>
+              <p>训练流程、数据样例、实验曲线、资源图谱和实践入口。</p>
               <small>打开课程站</small>
             </a>
             <a class="card" href="/minimind-v/">
@@ -283,7 +283,7 @@ function renderHomePage() {
 function renderNotFoundPage() {
   return renderShell({
     title: "页面未找到",
-    description: "MiniMind 教程站 404 页面。",
+    description: "MiniMind 教程页面。",
     active: "",
     body: `
       <main class="home-layout">
@@ -291,7 +291,7 @@ function renderNotFoundPage() {
           <div>
             <div class="eyebrow">404</div>
             <h1>页面未找到</h1>
-            <p>这个地址没有对应的静态页面。可以回到首页，或者从章节目录继续阅读。</p>
+            <p>这个地址没有对应的内容。可以回到首页，或者从章节目录继续阅读。</p>
             <div class="button-row">
               <a class="button" href="/">返回首页</a>
               <a class="button secondary" href="/chapters/01-architecture-overview/">阅读主教程</a>
@@ -349,7 +349,7 @@ function renderShell({ title, description, active, body }) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="${escapeHtml(description)}">
-  <title>${escapeHtml(title)} | learn-minimind</title>
+  <title>${escapeHtml(title)} | MiniMind 学习教程</title>
   <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
@@ -357,7 +357,7 @@ function renderShell({ title, description, active, body }) {
     <div class="topbar">
       <a class="brand" href="/">
         <span class="brand-mark">M</span>
-        <span>MiniMind 教程<small>静态学习站</small></span>
+        <span>MiniMind 教程<small>系列学习教程</small></span>
       </a>
       <nav class="topnav" aria-label="主导航">
         <a class="${active === "home" ? "active" : ""}" href="/">首页</a>
@@ -371,7 +371,7 @@ function renderShell({ title, description, active, body }) {
   </header>
   ${body}
   <footer class="footer">
-    <div class="footer-inner">learn-minimind 是纯静态教程站，可通过 Cloudflare Workers Static Assets 或 Cloudflare Pages 部署。</div>
+    <div class="footer-inner">MiniMind 系列学习教程，覆盖模型结构、训练方法、推理生成和多模态实践。</div>
   </footer>
 </body>
 </html>`;
@@ -485,7 +485,7 @@ async function writeRobots() {
 }
 
 async function writeSitemap() {
-  const siteUrl = (process.env.SITE_URL || "https://learn-minimind.pages.dev").replace(/\/$/, "");
+  const siteUrl = (process.env.SITE_URL || "https://learn-minimind.example.com").replace(/\/$/, "");
   const urls = [
     "/",
     "/course/",
