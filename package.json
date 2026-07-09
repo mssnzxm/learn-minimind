@@ -1,0 +1,19 @@
+{
+  "name": "learn-minimind",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "npm run build",
+    "preview": "npm run build && npx wrangler dev --local --port 8787",
+    "deploy": "npm run build && npx wrangler deploy",
+    "pages:deploy": "npm run build && npx wrangler pages deploy dist --project-name learn-minimind"
+  },
+  "dependencies": {
+    "marked": "^18.0.5"
+  }
+}

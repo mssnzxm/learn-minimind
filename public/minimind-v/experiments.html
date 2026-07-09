@@ -1,0 +1,123 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>实验评估 - MiniMind-V 学习教程</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-shell">
+      <a class="brand" href="index.html"><img src="assets/images/logo.png" alt="MiniMind-V 标志"><span>MiniMind-V 教程</span></a>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="index.html">首页</a>
+        <a href="foundations.html">基础知识</a>
+        <a href="architecture.html">模型架构</a>
+        <a href="data.html">数据流程</a>
+        <a href="training.html">训练复现</a>
+        <a href="inference.html">推理部署</a>
+        <a href="code-map.html">代码导览</a>
+        <a href="experiments.html">实验评估</a>
+        <a href="resources.html">资料索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="page-hero-inner">
+      <p class="eyebrow">Experiments</p>
+      <h1>评估、观察与排错</h1>
+      <p class="lead">小 VLM 的学习价值不只在跑出结果，更在观察它哪里可靠、哪里容易幻觉，以及这些现象和模型规模、数据、冻结策略之间的关系。</p>
+    </div>
+  </section>
+
+  <main class="layout two-column">
+    <article class="article">
+      <section id="eval-images" class="section">
+        <h2>1. 默认评估图片</h2>
+        <div class="image-grid">
+          <figure class="image-tile"><img src="assets/eval_images/image-01-golden-dog-balloons.jpg" alt="金色小狗与气球"><figcaption class="caption">金色小狗与气球</figcaption></figure>
+          <figure class="image-tile"><img src="assets/eval_images/image-02-rainbow-umbrella-street.jpg" alt="彩虹伞街景"><figcaption class="caption">彩虹伞街景</figcaption></figure>
+          <figure class="image-tile"><img src="assets/eval_images/image-03-cherry-blossom-bike.jpg" alt="樱花与自行车"><figcaption class="caption">樱花与自行车</figcaption></figure>
+          <figure class="image-tile"><img src="assets/eval_images/image-04-yellow-car.jpg" alt="黄色汽车"><figcaption class="caption">黄色汽车</figcaption></figure>
+          <figure class="image-tile"><img src="assets/eval_images/image-05-superhero-rooftop.jpg" alt="屋顶超级英雄"><figcaption class="caption">屋顶超级英雄</figcaption></figure>
+          <figure class="image-tile"><img src="assets/eval_images/image-06-racecar-drift.jpg" alt="漂移赛车"><figcaption class="caption">漂移赛车</figcaption></figure>
+        </div>
+      </section>
+
+      <section id="prompt" class="section">
+        <h2>2. 默认 prompt</h2>
+        <pre><code class="language-text">&lt;image&gt;
+请描述这张图中的主要物体和场景。</code></pre>
+        <p>这个 prompt 测的是开放式描述能力。想更细地评估，可以改成目标检测、颜色、数量、空间关系、文字识别、推理式问题等不同类型。</p>
+      </section>
+
+      <section id="dense-moe" class="section">
+        <h2>3. Dense 与 MoE 的观察点</h2>
+        <p>README 的评估小结指出：MoE 版本通常描述更丰富，对背景和细节捕捉更好；Dense 版本更简洁，重复表述更少。两者都可能在局部细节上产生不准确描述。</p>
+        <div class="grid cols-2">
+          <div class="callout">
+            <h3>看 grounding</h3>
+            <p>回答里的物体、颜色、数量、位置是否真的能从图片中看见。</p>
+          </div>
+          <div class="callout rust">
+            <h3>看语言能力</h3>
+            <p>回答是否连贯、是否重复、是否把图像信息和常识推理混淆。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="ablation" class="section">
+        <h2>4. 建议做的小实验</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>实验</th><th>改动</th><th>观察指标</th></tr></thead>
+            <tbody>
+              <tr><td>跳过 Pretrain</td><td>直接 <code>train_sft_vlm.py --from_weight llm</code></td><td>早期 loss 是否抖动，图像描述是否更慢稳定。</td></tr>
+              <tr><td>Projector only</td><td>SFT 也用 <code>--freeze_llm 2</code></td><td>回答格式和图像理解是否受限。</td></tr>
+              <tr><td>首尾层微调</td><td>默认 <code>--freeze_llm 1</code></td><td>语言能力和视觉能力是否平衡。</td></tr>
+              <tr><td>MoE</td><td><code>--use_moe 1</code></td><td>细节丰富度、重复率、aux_loss。</td></tr>
+              <tr><td>中文/英文 prompt</td><td>同一图片切换语言</td><td>双语训练下输出语言和细节差异。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="troubleshooting" class="section">
+        <h2>5. 常见问题</h2>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>找不到视觉编码器</h3>
+            <p>确认 <code>model/siglip2-base-p32-256-ve/</code> 下有 <code>config.json</code>、<code>model.safetensors</code>、<code>preprocessor_config.json</code>。</p>
+          </div>
+          <div class="card">
+            <h3>CUDA 不可用</h3>
+            <p>先运行 <code>import torch; print(torch.cuda.is_available())</code>，再核对 CUDA、torch 和驱动版本。</p>
+          </div>
+          <div class="card">
+            <h3>权重名不匹配</h3>
+            <p>脚本按 <code>{weight}_{hidden_size}{_moe}.pth</code> 拼路径，例如 <code>sft_vlm_768.pth</code> 或 <code>sft_vlm_768_moe.pth</code>。</p>
+          </div>
+          <div class="card">
+            <h3>WebUI 没有模型</h3>
+            <p>Transformers 格式模型目录需要复制到 <code>scripts/</code> 下，扫描逻辑才会在下拉菜单中发现它。</p>
+          </div>
+        </div>
+      </section>
+    </article>
+
+    <aside class="toc">
+      <p class="toc-title">本页目录</p>
+      <a href="#eval-images">评估图片</a>
+      <a href="#prompt">默认 prompt</a>
+      <a href="#dense-moe">Dense/MoE</a>
+      <a href="#ablation">小实验</a>
+      <a href="#troubleshooting">常见问题</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">更多链接和论文见 <a href="resources.html">资料索引</a>。</div></footer>
+</body>
+</html>

@@ -1,0 +1,121 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>基础知识 - MiniMind-V 学习教程</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-shell">
+      <a class="brand" href="index.html"><img src="assets/images/logo.png" alt="MiniMind-V 标志"><span>MiniMind-V 教程</span></a>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="index.html">首页</a>
+        <a href="foundations.html">基础知识</a>
+        <a href="architecture.html">模型架构</a>
+        <a href="data.html">数据流程</a>
+        <a href="training.html">训练复现</a>
+        <a href="inference.html">推理部署</a>
+        <a href="code-map.html">代码导览</a>
+        <a href="experiments.html">实验评估</a>
+        <a href="resources.html">资料索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="page-hero-inner">
+      <p class="eyebrow">Foundations</p>
+      <h1>从 token 到多模态</h1>
+      <p class="lead">MiniMind-V 的关键不是把一个巨大的视觉系统硬塞进语言模型，而是把图片转成语言模型能处理的一串向量，再让原本的自回归生成流程继续工作。</p>
+    </div>
+  </section>
+
+  <main class="layout two-column">
+    <article class="article">
+      <section id="token" class="section">
+        <h2>1. LLM 本质上在预测 token</h2>
+        <p>语言模型看到的是 token 序列，不是自然语言本身。文本会先被 tokenizer 切成 token id，再查 embedding 表得到向量，送入 Transformer。训练时，模型学习在当前位置预测下一个 token；推理时，模型把刚生成的 token 接回输入，继续预测后面的 token。</p>
+        <p>这个视角很重要：如果图片、声音或动作也能被转换成一串向量，并且这些向量落在语言模型能够融合的空间里，它们就可以参与同一个“预测下一个 token”的流程。</p>
+        <div class="callout">
+          <strong>MiniMind-V 的直觉：</strong>图像是语言模型没学过的“外语”，SigLIP2 像读图词典，MLP Projection 像翻译器，把视觉特征翻进 MiniMind 的语义空间。
+        </div>
+      </section>
+
+      <section id="vlm" class="section">
+        <h2>2. VLM 的最小配方</h2>
+        <div class="flow" aria-label="VLM 数据流">
+          <div class="flow-step"><b>图像</b>输入一张 RGB 图片，统一预处理到视觉编码器期望的尺寸。</div>
+          <div class="flow-step"><b>视觉编码器</b>ViT / SigLIP2 把图片切成 patch token 并输出视觉特征。</div>
+          <div class="flow-step"><b>Projector</b>把视觉特征维度映射到 LLM hidden size。</div>
+          <div class="flow-step"><b>占位替换</b>用投影后的视觉 token 替换文本里的图像占位符 embedding。</div>
+          <div class="flow-step"><b>自回归输出</b>LLM 像处理文本一样生成回答。</div>
+        </div>
+        <p>MiniMind-V 采用非常克制的实现：视觉编码器全程冻结，核心可训练模块是 <code>vision_proj</code>，SFT 阶段再解冻 LLM 首尾层，让视觉 token 进入模型后能被吸收，同时尽量保留中间层的语言能力。</p>
+      </section>
+
+      <section id="siglip" class="section">
+        <h2>3. 为什么是 64 个视觉 token</h2>
+        <p>当前项目使用 <code>siglip2-base-p32-256-ve</code> 作为视觉编码器。输入图像按 256×256 处理，patch size 为 32，因此会形成 8×8 共 64 个 patch token。每个 token 的视觉隐藏维度是 768，随后进入 <code>MMVisionProjector</code>。</p>
+        <div class="media-frame">
+          <img src="assets/images/minimind-v-input.jpg" alt="MiniMind-V 输入占位符示意图">
+          <p class="caption">文本 prompt 中的 <code>&lt;image&gt;</code> 会被展开成 64 个 <code>&lt;|image_pad|&gt;</code>，模型再把这些位置的 embedding 替换为视觉特征。</p>
+        </div>
+      </section>
+
+      <section id="terms" class="section">
+        <h2>4. 术语速查</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>术语</th><th>在 MiniMind-V 里的含义</th><th>对应位置</th></tr></thead>
+            <tbody>
+              <tr><td>Tokenizer</td><td>把聊天文本、特殊 token 和回答模板转换成 token id。</td><td><code>model/tokenizer.json</code></td></tr>
+              <tr><td>Embedding</td><td>token id 对应的向量表示，视觉 token 最终也要进入这个空间。</td><td><code>model.model.embed_tokens</code></td></tr>
+              <tr><td>Visual Encoder</td><td>冻结的 SigLIP2 视觉模型，负责从图片提取 patch 特征。</td><td><code>MiniMindVLM.get_vision_model</code></td></tr>
+              <tr><td>Projector</td><td>LayerNorm + Linear + GELU + Linear，把视觉特征对齐到 LLM hidden size。</td><td><code>MMVisionProjector</code></td></tr>
+              <tr><td>SFT</td><td>监督微调，让模型按指令围绕图片回答问题。</td><td><code>trainer/train_sft_vlm.py</code></td></tr>
+              <tr><td>MoE</td><td>Mixture of Experts，每个 token 只激活部分专家，区分总参数与激活参数。</td><td><code>use_moe=1</code></td></tr>
+              <tr><td><code>-100</code> label</td><td>交叉熵忽略的标签值，用来只训练 assistant 回复部分。</td><td><code>VLMDataset.generate_labels</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="prereq" class="section">
+        <h2>5. 需要补齐的基础</h2>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>机器学习与 PyTorch</h3>
+            <p>张量维度、反向传播、optimizer、loss、mixed precision、DataLoader、DDP 是训练脚本里最常出现的概念。</p>
+          </div>
+          <div class="card">
+            <h3>Transformers 生态</h3>
+            <p><code>AutoTokenizer</code>、<code>AutoModelForCausalLM</code>、<code>save_pretrained</code> 和 <code>trust_remote_code</code> 影响推理、格式转换和 WebUI。</p>
+          </div>
+          <div class="card">
+            <h3>视觉模型</h3>
+            <p>ViT 把图片切成 patch，SigLIP 系列通过图文对比学习获得图像语义特征，MiniMind-V 使用它的 encoder 输出。</p>
+          </div>
+          <div class="card">
+            <h3>数据工程</h3>
+            <p>项目数据用 parquet 存 <code>conversations</code> 和 <code>image_bytes</code>，避免大量零碎图片文件导致读取和解压缓慢。</p>
+          </div>
+        </div>
+      </section>
+    </article>
+
+    <aside class="toc">
+      <p class="toc-title">本页目录</p>
+      <a href="#token">LLM 与 token</a>
+      <a href="#vlm">VLM 最小配方</a>
+      <a href="#siglip">64 个视觉 token</a>
+      <a href="#terms">术语速查</a>
+      <a href="#prereq">基础清单</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">下一步建议阅读 <a href="architecture.html">模型架构</a>。</div></footer>
+</body>
+</html>

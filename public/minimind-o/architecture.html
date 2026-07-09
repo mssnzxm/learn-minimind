@@ -1,0 +1,148 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniMind-O 学习教程 | 架构精读</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/images/logo.png" alt="MiniMind-O logo">
+        <span><strong>MiniMind-O 教程</strong><span>从项目代码读懂端到端 Omni</span></span>
+      </a>
+      <nav class="main-nav" aria-label="主导航">
+        <a href="index.html">路线</a>
+        <a href="foundations.html">基础</a>
+        <a href="setup.html">环境</a>
+        <a href="architecture.html">架构</a>
+        <a href="data-training.html">数据训练</a>
+        <a href="inference-webui.html">推理交互</a>
+        <a href="experiments.html">实验进阶</a>
+        <a href="references.html">参考</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/jingyaogong/minimind-o" title="GitHub 源仓库"><i data-lucide="github"></i>源码</a>
+        <a class="icon-button" href="http://arxiv.org/abs/2605.03937" title="技术报告"><i data-lucide="file-text"></i>报告</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page content-grid">
+    <article class="article">
+      <section class="page-title">
+        <span class="eyebrow">Architecture</span>
+        <h1>架构精读</h1>
+        <p>MiniMind-O 的核心是 Thinker/Talker 双路径。Thinker 负责理解和文本生成，Talker 在 Thinker 的中间表征上生成 8 路 Mimi audio codes。</p>
+      </section>
+
+      <section class="section" id="overview">
+        <h2>总览</h2>
+        <figure class="figure">
+          <img src="assets/images/architecture.jpg" alt="MiniMind-O 架构图">
+          <figcaption>Thinker 接收文本、语音、图像；Talker 接收 bridge state、audio code history 和音色条件。</figcaption>
+        </figure>
+        <div class="flow">
+          <div class="flow-step"><strong>输入占位</strong><span>文本 token 中出现 <code>&lt;|audio_pad|&gt;</code> 或 <code>&lt;|image_pad|&gt;</code>。</span></div>
+          <div class="flow-step"><strong>特征注入</strong><span>冻结 encoder 产生特征，projector 对齐到 hidden size。</span></div>
+          <div class="flow-step"><strong>Thinker</strong><span>Transformer 主干融合上下文并输出文本 logits。</span></div>
+          <div class="flow-step"><strong>Talker</strong><span>根据 bridge state 预测 8 层 Mimi codes。</span></div>
+        </div>
+      </section>
+
+      <section class="section" id="config">
+        <h2>OmniConfig 的关键参数</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>参数</th><th>默认值</th><th>作用</th></tr></thead>
+            <tbody>
+              <tr><td>`num_talker_hidden_layers`</td><td>4</td><td>Talker 的 Transformer block 数。</td></tr>
+              <tr><td>`talker_hidden_size`</td><td>768</td><td>Talker 隐藏维度，dense 版本与 Thinker 对齐。</td></tr>
+              <tr><td>`audio_vocab_size`</td><td>2112</td><td>2048 个 Mimi codes 加特殊音频 token。</td></tr>
+              <tr><td>`audio_pad_token`</td><td>2049</td><td>音频输入流的 padding。</td></tr>
+              <tr><td>`audio_stop_token`</td><td>2050</td><td>Talker 停止输出音频的标志。</td></tr>
+              <tr><td>`audio_spk_token`</td><td>2051</td><td>speaker embedding 注入位置。</td></tr>
+              <tr><td>`image_token_len`</td><td>64</td><td>每张图对应的视觉 token 数。</td></tr>
+              <tr><td>`bridge_layer`</td><td>`num_hidden_layers // 2 - 1`</td><td>把 Thinker 中间层表征送给 Talker。</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">源码入口：`model/model_omni.py` 的 `OmniConfig`。</p>
+      </section>
+
+      <section class="section" id="thinker">
+        <h2>Thinker：理解与文本生成</h2>
+        <p>Thinker 本质上是 MiniMind 语言模型主干。它先把文本 token 变成 embedding；如果 prompt 中含有音频或图像占位符，就用 projector 后的真实模态特征替换对应位置的 embedding。</p>
+        <div class="cards two">
+          <div class="card"><h3>音频注入</h3><p><code>encode_audio_inputs</code> 调用 SenseVoice encoder，<code>inject_audio_features</code> 找到连续 <code>&lt;|audio_pad|&gt;</code> 段并替换。</p></div>
+          <div class="card"><h3>图像注入</h3><p><code>get_image_embeddings</code> / <code>encode_image_inputs</code> 调用 SigLIP2，<code>count_vision_proj</code> 替换 <code>&lt;|image_pad|&gt;</code> 段。</p></div>
+          <div class="card"><h3>文本 logits</h3><p>Thinker 最后经过 norm 和 `lm_head`，用于 assistant 文本回复的 next-token prediction。</p></div>
+          <div class="card"><h3>bridge state</h3><p>循环 Thinker layers 时，在 `bridge_layer` 处保存中间 hidden states，供 Talker 使用。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="talker">
+        <h2>Talker：从语义到声音</h2>
+        <p>Talker 不是另一个 TTS 服务，而是一个小 Transformer。它同时看两类信息：Thinker 的 bridge states 和已经生成/给定的 8 路 audio code history。两者分别经 `embed_proj` 和 `codec_proj` 后相加，再进入 Talker blocks。</p>
+        <div class="cards">
+          <div class="card"><h3>TalkerEmbedding</h3><p>8 路 audio codes 使用共享 embedding 主体和轻量 adapter，减少参数重复。</p></div>
+          <div class="card"><h3>TalkerHead</h3><p>输出端同样是共享 base + 8 个 adapter，每层 codebook 各自得到 logits。</p></div>
+          <div class="card"><h3>Speaker Condition</h3><p>遇到 `audio_spk_token` 时，用 `spk_proj(spk_emb)` 替代该位置 embedding。</p></div>
+        </div>
+        <figure class="figure">
+          <img src="assets/images/sequence_format.jpg" alt="MiniMind-O 序列格式">
+          <figcaption>训练样本中有 8 路 audio stream 和 1 路 text stream。Talker 的目标是预测 audio labels。</figcaption>
+        </figure>
+      </section>
+
+      <section class="section" id="forward">
+        <h2>一次 forward 的路径</h2>
+        <pre><code class="language-text">input_ids: (B, 9, T) 或 (B, T)
+  ├─ text_ids = input_ids[:, 8, :]
+  ├─ audio_ids = input_ids[:, :8, :]
+  ├─ Thinker embed text
+  ├─ inject audio / image features at special-token spans
+  ├─ run Thinker layers, save bridge_states
+  ├─ Talker embed audio codes
+  ├─ add speaker embedding at audio_spk_token
+  ├─ combine embed_proj(bridge_states) + codec_proj(talker_emb)
+  ├─ run Talker layers
+  └─ return text logits + 8 audio logits</code></pre>
+        <div class="callout">
+          <strong>为什么用中间层 bridge：</strong>embedding 层语义不足，最后一层更贴近文本 next-token 目标；中间层通常已经融合上下文和模态信息，又没有被 LM head 过度塑形。
+        </div>
+      </section>
+
+      <section class="section" id="streaming">
+        <h2>流式生成</h2>
+        <p>`stream_generate` 每轮先采样文本 token，再根据延迟调度补齐各层 audio code。由于一帧音频需要 8 层 codebook，代码用 `audio_step` 和 `step - 7 + i` 把不同层对齐，只有 8 层都活跃时才向外 yield 一个 audio frame。</p>
+        <div class="cards two">
+          <div class="card"><h3>文本停止</h3><p>文本遇到 `eos_token_id` 后进入 finished 状态，但音频还会继续补齐到 stop token。</p></div>
+          <div class="card"><h3>思考模式</h3><p><code>open_thinking=1</code> 时等待 <code>&lt;/think&gt;\n\n</code> 后再启动音频输出，避免把思考过程读出来。</p></div>
+        </div>
+      </section>
+
+      <nav class="pager" aria-label="翻页">
+        <a href="setup.html"><span>上一页</span><strong>环境与资源</strong></a>
+        <a class="next" href="data-training.html"><span>下一页</span><strong>数据与训练</strong></a>
+      </nav>
+    </article>
+
+    <aside class="toc" aria-label="本页目录">
+      <strong>本页目录</strong>
+      <a href="#overview">总览</a>
+      <a href="#config">关键参数</a>
+      <a href="#thinker">Thinker</a>
+      <a href="#talker">Talker</a>
+      <a href="#forward">Forward 路径</a>
+      <a href="#streaming">流式生成</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">核心代码位于 `model/model_omni.py`；语言模型基础实现位于 `model/model_minimind.py`。</div></footer>
+</body>
+</html>

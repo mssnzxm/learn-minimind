@@ -1,0 +1,113 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>数据流程 - MiniMind-V 学习教程</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-shell">
+      <a class="brand" href="index.html"><img src="assets/images/logo.png" alt="MiniMind-V 标志"><span>MiniMind-V 教程</span></a>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="index.html">首页</a>
+        <a href="foundations.html">基础知识</a>
+        <a href="architecture.html">模型架构</a>
+        <a href="data.html">数据流程</a>
+        <a href="training.html">训练复现</a>
+        <a href="inference.html">推理部署</a>
+        <a href="code-map.html">代码导览</a>
+        <a href="experiments.html">实验评估</a>
+        <a href="resources.html">资料索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="page-hero-inner">
+      <p class="eyebrow">Dataset</p>
+      <h1>从 parquet 到训练 batch</h1>
+      <p class="lead">MiniMind-V 的数据设计很简洁：一列聊天 JSON，一列图像二进制。Dataset 负责套聊天模板、展开图像占位符、生成 labels，并把图像转成 SigLIP2 输入张量。</p>
+    </div>
+  </section>
+
+  <main class="layout two-column">
+    <article class="article">
+      <section id="source" class="section">
+        <h2>1. 数据来源</h2>
+        <p>README 记录当前训练数据来自 ALLaVA-4V 系列。MiniMind-V 把数据重新整理为两个 parquet 文件：</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>文件</th><th>规模</th><th>用途</th><th>训练建议</th></tr></thead>
+            <tbody>
+              <tr><td><code>pretrain_i2t.parquet</code></td><td>约 127 万条</td><td>图片 caption，对齐视觉 token 与语言 token。</td><td>可选，先跑会让 Projector 收敛更稳。</td></tr>
+              <tr><td><code>sft_i2t.parquet</code></td><td>约 290 万条</td><td>图像问答、长描述、纯文本对话混合。</td><td>必需；已包含 Pretrain caption 子集，可直接 SFT。</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>数据中英比例相对均衡：中文有利于中文输出，英文描述通常更细。纯文本对话样本用于保护 MiniMind 语言主干原本的对话能力。</p>
+      </section>
+
+      <section id="schema" class="section">
+        <h2>2. parquet 字段</h2>
+        <pre><code class="language-text">列名:
+  conversations: json string
+  image_bytes: binary 或 binary list
+
+conversations 示例:
+[
+  {"role": "user", "content": "&lt;image&gt;\n请提供对图片的详细文字描述。"},
+  {"role": "assistant", "content": "这张图片展示的是一个..."}
+]</code></pre>
+        <p><code>image_bytes</code> 直接存图片二进制，避免把几十万张图片拆成零散文件。训练时用 PIL 从 bytes 读图，再交给 SigLIP2 processor。</p>
+      </section>
+
+      <section id="dataset-class" class="section">
+        <h2>3. VLMDataset 做了什么</h2>
+        <div class="flow">
+          <div class="flow-step"><b>读取 parquet</b><code>pyarrow.parquet</code> 把表加载进内存。</div>
+          <div class="flow-step"><b>处理聊天</b>概率添加 system prompt，去除部分空 thinking 标签。</div>
+          <div class="flow-step"><b>展开图像</b><code>&lt;image&gt;</code> 替换为 64 个 <code>&lt;|image_pad|&gt;</code>。</div>
+          <div class="flow-step"><b>生成 labels</b>用户和 system 位置填 <code>-100</code>，只监督 assistant。</div>
+          <div class="flow-step"><b>处理图片</b><code>MiniMindVLM.image2tensor</code> 得到 pixel values。</div>
+        </div>
+      </section>
+
+      <section id="labels" class="section">
+        <h2>4. 为什么 label 里有 -100</h2>
+        <p>训练对话模型时，通常只希望模型学习 assistant 的回复，而不是学习复读 user prompt。PyTorch 的交叉熵会忽略 label 为 <code>-100</code> 的位置，所以 <code>generate_labels</code> 会扫描 assistant 起止 token，只保留回答部分作为监督信号。</p>
+        <div class="callout amber">
+          读数据代码时可以重点看 <code>self.bos_id</code> 和 <code>self.eos_id</code>：它们定义了 assistant 回复的边界，决定哪些 token 会真正参与 loss。
+        </div>
+      </section>
+
+      <section id="collate" class="section">
+        <h2>5. collate_fn 与多图样本</h2>
+        <p><code>vlm_collate_fn</code> 把每条样本的 <code>input_ids</code>、<code>labels</code> 和 <code>pixel_values</code> 堆成 batch。当前 README 说明发布的 Transformers 版本是单图 SFT 后模型，但代码对 <code>image_bytes</code> list 和多图张量做了兼容。</p>
+      </section>
+
+      <section id="preview" class="section">
+        <h2>6. 预览数据</h2>
+        <p>把 parquet 放到 <code>dataset/</code> 后，可以运行数据脚本预览前 5 条样本，快速检查图片与文本是否匹配。</p>
+        <pre><code class="language-bash">cd dataset
+python lm_dataset.py</code></pre>
+        <p>脚本会读 <code>pretrain_i2t.parquet</code> 和 <code>sft_i2t.parquet</code>，保存预览图片。若只下载了一个文件，需要按实际文件名调整脚本或先跳过缺失文件。</p>
+      </section>
+    </article>
+
+    <aside class="toc">
+      <p class="toc-title">本页目录</p>
+      <a href="#source">数据来源</a>
+      <a href="#schema">parquet 字段</a>
+      <a href="#dataset-class">VLMDataset</a>
+      <a href="#labels">labels</a>
+      <a href="#collate">collate_fn</a>
+      <a href="#preview">预览数据</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">继续阅读 <a href="training.html">训练复现</a>。</div></footer>
+</body>
+</html>

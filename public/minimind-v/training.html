@@ -1,0 +1,138 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>训练复现 - MiniMind-V 学习教程</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-shell">
+      <a class="brand" href="index.html"><img src="assets/images/logo.png" alt="MiniMind-V 标志"><span>MiniMind-V 教程</span></a>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="index.html">首页</a>
+        <a href="foundations.html">基础知识</a>
+        <a href="architecture.html">模型架构</a>
+        <a href="data.html">数据流程</a>
+        <a href="training.html">训练复现</a>
+        <a href="inference.html">推理部署</a>
+        <a href="code-map.html">代码导览</a>
+        <a href="experiments.html">实验评估</a>
+        <a href="resources.html">资料索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="page-hero-inner">
+      <p class="eyebrow">Training</p>
+      <h1>训练 MiniMind-V</h1>
+      <p class="lead">复现训练时最重要的是准备三样东西：MiniMind 语言权重、SigLIP2 视觉编码器、parquet 数据。然后选择直接 SFT，或先 Pretrain Projector 再 SFT。</p>
+    </div>
+  </section>
+
+  <main class="layout two-column">
+    <article class="article">
+      <section id="setup" class="section">
+        <h2>1. 环境和资源</h2>
+        <pre><code class="language-bash">pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 下载视觉编码器
+modelscope download --model gongjy/siglip2-base-p32-256-ve --local_dir ./model/siglip2-base-p32-256-ve
+
+# 下载 MiniMind 语言模型权重，作为 VLM 训练底座
+modelscope download --model gongjy/minimind-3v-pytorch llm_768.pth --local_dir ./out</code></pre>
+        <p>如果使用 HuggingFace，也可以从 MiniMind-V Collection 选择对应模型目录。视觉编码器需要放在 <code>model/siglip2-base-p32-256-ve/</code>。</p>
+      </section>
+
+      <section id="paths" class="section">
+        <h2>2. 两条训练路径</h2>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>快速路径：直接 SFT</h3>
+            <p>SFT 数据已包含 Pretrain caption 子集，适合先跑通流程。</p>
+            <pre><code class="language-bash">cd trainer
+python train_sft_vlm.py --epochs 2 --from_weight llm</code></pre>
+          </div>
+          <div class="card">
+            <h3>稳妥路径：Pretrain + SFT</h3>
+            <p>先让 Projector 学会基础图文对齐，再进入指令微调。</p>
+            <pre><code class="language-bash">cd trainer
+python train_pretrain_vlm.py --epochs 2 --from_weight llm
+python train_sft_vlm.py --epochs 2 --from_weight pretrain_vlm</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="freeze" class="section">
+        <h2>3. 冻结策略</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>参数</th><th>训练范围</th><th>适用阶段</th><th>理由</th></tr></thead>
+            <tbody>
+              <tr><td><code>--freeze_llm 2</code></td><td>仅训练 <code>vision_proj</code></td><td>Pretrain 默认</td><td>干净完成视觉到语言空间的初始对齐。</td></tr>
+              <tr><td><code>--freeze_llm 1</code></td><td><code>vision_proj</code> + LLM 首尾层</td><td>SFT 默认</td><td>融合视觉 token，同时保护中间层语言能力。</td></tr>
+              <tr><td><code>--freeze_llm 0</code></td><td>除视觉编码器外全参可训</td><td>实验用</td><td>灵活但风险更高，小模型容易遗忘原语言能力。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="hyperparams" class="section">
+        <h2>4. 默认超参数</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>脚本</th><th>batch</th><th>学习率</th><th>max_seq_len</th><th>from_weight</th></tr></thead>
+            <tbody>
+              <tr><td><code>train_pretrain_vlm.py</code></td><td>16</td><td><code>4e-4</code></td><td>450</td><td><code>llm</code></td></tr>
+              <tr><td><code>train_sft_vlm.py</code></td><td>4</td><td><code>5e-6</code></td><td>768</td><td><code>pretrain_vlm</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>训练脚本使用 cosine 风格学习率衰减、梯度裁剪、bf16/float16 混合精度，并支持 <code>torch.compile</code>。</p>
+      </section>
+
+      <section id="resume" class="section">
+        <h2>5. 断点续训和多卡</h2>
+        <pre><code class="language-bash"># 中断后恢复
+python train_sft_vlm.py --epochs 4 --from_resume 1
+
+# 单机 N 卡 DDP
+torchrun --nproc_per_node N train_sft_vlm.py</code></pre>
+        <p>保存时会同时写出 <code>out/*.pth</code> 和 <code>checkpoints/*_resume.pth</code>。resume 文件保存优化器、scaler、epoch、step 和日志 id；GPU 数量变化时，脚本会按 world size 自动折算 step。</p>
+      </section>
+
+      <section id="loss" class="section">
+        <h2>6. Loss 曲线参考</h2>
+        <div class="grid cols-2">
+          <div class="media-frame">
+            <img src="assets/images/pretrain_loss.jpg" alt="MiniMind-V Pretrain loss 曲线">
+            <p class="caption">Pretrain：主要观察 Projector 是否快速完成视觉语言对齐。</p>
+          </div>
+          <div class="media-frame">
+            <img src="assets/images/sft_loss.jpg" alt="MiniMind-V SFT loss 曲线">
+            <p class="caption">SFT：学习率更低，目标是指令遵循、细节问答和语言能力平衡。</p>
+          </div>
+        </div>
+        <div class="callout rust">
+          README 记录：单张 NVIDIA 3090 上，SFT 跑完 1 个 epoch 约 2 小时，成本按当时云租价格估算约 3 元。实际速度会受数据读取、CUDA、磁盘和显存策略影响。
+        </div>
+      </section>
+    </article>
+
+    <aside class="toc">
+      <p class="toc-title">本页目录</p>
+      <a href="#setup">环境资源</a>
+      <a href="#paths">训练路径</a>
+      <a href="#freeze">冻结策略</a>
+      <a href="#hyperparams">超参数</a>
+      <a href="#resume">续训多卡</a>
+      <a href="#loss">Loss 参考</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">训练后进入 <a href="inference.html">推理部署</a>。</div></footer>
+</body>
+</html>

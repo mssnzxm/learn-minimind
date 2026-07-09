@@ -1,0 +1,136 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniMind-O 学习教程 | 实验进阶</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/images/logo.png" alt="MiniMind-O logo">
+        <span><strong>MiniMind-O 教程</strong><span>从项目代码读懂端到端 Omni</span></span>
+      </a>
+      <nav class="main-nav" aria-label="主导航">
+        <a href="index.html">路线</a>
+        <a href="foundations.html">基础</a>
+        <a href="setup.html">环境</a>
+        <a href="architecture.html">架构</a>
+        <a href="data-training.html">数据训练</a>
+        <a href="inference-webui.html">推理交互</a>
+        <a href="experiments.html">实验进阶</a>
+        <a href="references.html">参考</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/jingyaogong/minimind-o" title="GitHub 源仓库"><i data-lucide="github"></i>源码</a>
+        <a class="icon-button" href="http://arxiv.org/abs/2605.03937" title="技术报告"><i data-lucide="file-text"></i>报告</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page content-grid">
+    <article class="article">
+      <section class="page-title">
+        <span class="eyebrow">Experiments</span>
+        <h1>实验进阶</h1>
+        <p>MiniMind-O 的价值不在“最强”，而在足够小、链路完整、容易改。理解它的评估口径和限制，才知道下一步该改哪里。</p>
+      </section>
+
+      <section class="section" id="metrics">
+        <h2>评估指标怎么读</h2>
+        <div class="cards">
+          <div class="card"><h3>CER/WER</h3><p>把模型输出语音再转写成文本，与目标文本比较字符/词错误率。它衡量“说的内容是否对”，不直接衡量音质。</p></div>
+          <div class="card"><h3>音色相似度</h3><p>用 CAM++ speaker embedding 的余弦相似度衡量参考音色和输出音色接近程度。</p></div>
+          <div class="card"><h3>定性样例</h3><p>看 A2A、I2A、实时交互等可听可看的样例，补足自动指标不能覆盖的自然度和交互体验。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="ablation">
+        <h2>Talker hidden size 消融</h2>
+        <p>技术报告和 README 都强调 Talker 维度不是越小越划算。384/512 维参数更少，但中长句更容易漏词、重复和发音漂移；768 维与 Thinker hidden size 对齐，稳定性更好。</p>
+        <div class="callout">
+          <strong>学习重点：</strong>Talker 面对的是 8 层声学 codebook，不是单一文本 token。因此它虽然可以比大 TTS 小很多，但不能被压得过窄。
+        </div>
+      </section>
+
+      <section class="section" id="voice">
+        <h2>音色克隆实验</h2>
+        <p>当前版本的音色克隆更像研究入口，不是产品级高保真克隆。同一参考音色在不同问题上可能会有波动，长句里也更容易受发音和节奏影响。</p>
+        <div class="cards two">
+          <div class="card"><h3>Seen 音色</h3><p>训练中见过，通常更稳定，适合观察模型是否学会音色条件。</p></div>
+          <div class="card"><h3>Unseen 音色</h3><p>训练未见过，适合观察 in-context voice cloning 的迁移能力。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="vision">
+        <h2>视觉语言与图像到语音</h2>
+        <p>MiniMind-O 的视觉路径适合作为紧凑的 vision-to-speech 基线。它通常能抓住主体物体和大致场景，但细粒度空间关系、数量和属性仍容易出错。</p>
+        <figure class="figure">
+          <img src="assets/images/qual_a2a.jpg" alt="A2A 定性样例">
+          <figcaption>A2A 定性样例帮助观察语音输入到语音输出链路的稳定性。</figcaption>
+        </figure>
+      </section>
+
+      <section class="section" id="limits">
+        <h2>当前限制</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>现象</th><th>可能原因</th><th>改进方向</th></tr></thead>
+            <tbody>
+              <tr><td>长英文语音漏词或漂移</td><td>0.1B Talker 容量有限，长序列 audio code 累积误差。</td><td>更强 Talker、更长训练、更好的 stop/韵律监督。</td></tr>
+              <tr><td>中文韵律不稳定</td><td>中文字音映射、停顿和多说话人更复杂。</td><td>增加中文高质量 T2A/A2A 数据，分层评估 CER 与自然度。</td></tr>
+              <tr><td>视觉细节错误</td><td>小模型推理能力和视觉 projector 对齐有限。</td><td>加强视觉指令数据，试验更强 vision encoder 或 projector。</td></tr>
+              <tr><td>打断只按声音判断</td><td>VAD 是声学阈值，不理解语义。</td><td>加入语义级 turn-taking 或意图判断。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="recipes">
+        <h2>适合上手的改造实验</h2>
+        <div class="cards two">
+          <div class="card"><h3>改 bridge layer</h3><p>调 `OmniConfig.bridge_layer`，比较 Talker 文本一致性和音频稳定性。</p></div>
+          <div class="card"><h3>只训 projector</h3><p>用 `--mode audio_proj` 或 `vision_proj` 做低成本对齐实验。</p></div>
+          <div class="card"><h3>调整解码采样</h3><p>改 `temperature`、`top_p`、audio logits top-k，观察自然度与稳定性的平衡。</p></div>
+          <div class="card"><h3>扩充 eval 样例</h3><p>往 `dataset/eval_omni` 增加自己的语音和图像，形成固定回归集。</p></div>
+          <div class="card"><h3>改 VAD 阈值</h3><p>在 `RealtimeSession` 调整 threshold、min_speech_ms、min_silence_ms，观察打断体验。</p></div>
+          <div class="card"><h3>整理训练日志</h3><p>记录 text/audio loss、stop token 错误、输出时长和 ASR 转写结果。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="roadmap">
+        <h2>推荐阅读路线</h2>
+        <div class="checklist">
+          <label class="check-item"><input type="checkbox" data-check-id="read-minimind"><span>先读 `model/model_minimind.py`，理解 MiniMind Transformer 的基本实现。</span></label>
+          <label class="check-item"><input type="checkbox" data-check-id="read-omni"><span>再读 `model/model_omni.py`，跟踪 `forward` 和 `stream_generate`。</span></label>
+          <label class="check-item"><input type="checkbox" data-check-id="read-dataset"><span>读 `dataset/omni_dataset.py`，画出一个训练样本的 9 路张量。</span></label>
+          <label class="check-item"><input type="checkbox" data-check-id="run-eval"><span>运行 `eval_omni.py --mode 0,2,4`，确认文本、语音、图像链路。</span></label>
+          <label class="check-item"><input type="checkbox" data-check-id="run-mini"><span>用 mini 数据训练一次，并保留输出样例作为自己的 baseline。</span></label>
+        </div>
+      </section>
+
+      <nav class="pager" aria-label="翻页">
+        <a href="inference-webui.html"><span>上一页</span><strong>推理与交互</strong></a>
+        <a class="next" href="references.html"><span>下一页</span><strong>源码与参考</strong></a>
+      </nav>
+    </article>
+
+    <aside class="toc" aria-label="本页目录">
+      <strong>本页目录</strong>
+      <a href="#metrics">评估指标</a>
+      <a href="#ablation">Talker 消融</a>
+      <a href="#voice">音色克隆</a>
+      <a href="#vision">视觉样例</a>
+      <a href="#limits">当前限制</a>
+      <a href="#recipes">改造实验</a>
+      <a href="#roadmap">阅读路线</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">进阶实验建议一次只改一个变量，先形成可重复的评估集。</div></footer>
+</body>
+</html>

@@ -1,0 +1,152 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniMind-O 学习教程 | 推理与交互</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/images/logo.png" alt="MiniMind-O logo">
+        <span><strong>MiniMind-O 教程</strong><span>从项目代码读懂端到端 Omni</span></span>
+      </a>
+      <nav class="main-nav" aria-label="主导航">
+        <a href="index.html">路线</a>
+        <a href="foundations.html">基础</a>
+        <a href="setup.html">环境</a>
+        <a href="architecture.html">架构</a>
+        <a href="data-training.html">数据训练</a>
+        <a href="inference-webui.html">推理交互</a>
+        <a href="experiments.html">实验进阶</a>
+        <a href="references.html">参考</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/jingyaogong/minimind-o" title="GitHub 源仓库"><i data-lucide="github"></i>源码</a>
+        <a class="icon-button" href="http://arxiv.org/abs/2605.03937" title="技术报告"><i data-lucide="file-text"></i>报告</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page content-grid">
+    <article class="article">
+      <section class="page-title">
+        <span class="eyebrow">Inference & WebUI</span>
+        <h1>推理与交互</h1>
+        <p>推理阶段要理解三件事：模型怎么加载、不同输入模式如何构造 prompt、音频 codes 如何被 Mimi 解码并流式播放。</p>
+      </section>
+
+      <section class="section" id="cli">
+        <h2>命令行推理入口</h2>
+        <p>`eval_omni.py` 支持原生 PyTorch 权重和 transformers 目录两种加载方式。它会加载 tokenizer、MiniMind-O 模型、SenseVoice/SigLIP2 和 Mimi decoder。</p>
+        <pre><code class="language-bash"># 原生 PyTorch 权重
+python eval_omni.py --load_from model --weight sft_omni --mode -1 --prompt_lang 2
+
+# transformers 格式权重
+python eval_omni.py --load_from minimind-3o --mode 0,2,4</code></pre>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>`--mode`</th><th>含义</th><th>输入来源</th></tr></thead>
+            <tbody>
+              <tr><td>`0`</td><td>text → text/audio</td><td>脚本内置中英文 prompt。</td></tr>
+              <tr><td>`1`</td><td>multi-turn → text/audio</td><td>脚本内置多轮历史。</td></tr>
+              <tr><td>`2`</td><td>audio → text/audio</td><td>`dataset/eval_omni/audio-*.mp3`。</td></tr>
+              <tr><td>`3`</td><td>clone voice → text/audio</td><td>`model/speaker/voices_unseen.pt`。</td></tr>
+              <tr><td>`4`</td><td>image → text/audio</td><td>`dataset/eval_omni/*.jpg`。</td></tr>
+              <tr><td>`5`</td><td>image + audio → text/audio</td><td>图片样例 + `img-*.mp3` 语音问题。</td></tr>
+              <tr><td>`-1`</td><td>全部模式</td><td>等价于 `0,1,2,3,4,5`。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="text-audio">
+        <h2>文本与语音输出</h2>
+        <p>`eval_sample` 会调用 `model.generate(..., stream=True, return_audio_codes=True)`。Thinker 的文本增量打印到终端；Talker 的 audio frame 收集起来后交给 `MimiModel.decode`，保存为 mp3。</p>
+        <pre><code class="language-text">chat template → input_ids
+  ├─ MiniMindOmni.generate(stream=True)
+  │   ├─ yield text token ids
+  │   └─ yield 8-layer audio frame
+  ├─ MimiModel.decode(codes)
+  └─ save mp3 to output_audio/</code></pre>
+        <div class="callout warn">
+          <strong>语音不是每个 token 都立刻可播放：</strong>Talker 需要等 8 层 codebook 都对齐后才输出一个完整 audio frame，因此流式播放里会有短暂启动延迟。
+        </div>
+      </section>
+
+      <section class="section" id="audio-image">
+        <h2>语音与图像输入</h2>
+        <div class="cards two">
+          <div class="card"><h3>语音输入</h3><p><code>OmniDataset.process_audio</code> 读取 mp3/wav，重采样到 16 kHz，生成 SenseVoice fbank。prompt 则由若干 <code>&lt;|audio_pad|&gt;</code> 占位符组成。</p></div>
+          <div class="card"><h3>图像输入</h3><p>PIL 读取图片，SigLIP processor 输出 <code>pixel_values</code>。prompt 在文本后拼接 64 个 <code>&lt;|image_pad|&gt;</code>。</p></div>
+        </div>
+        <figure class="figure">
+          <img src="assets/images/image2audio_qualitative.jpg" alt="图像到语音样例">
+          <figcaption>图像问答链路：视觉编码、文本生成、语音渲染在同一套推理流程里完成。</figcaption>
+        </figure>
+      </section>
+
+      <section class="section" id="voice">
+        <h2>音色选择与克隆</h2>
+        <p>发布资源里包含 `model/speaker/voices.pt`、`voices_unseen.pt` 和手工克隆文件 `voice_clone.pt`。每个音色通常包含 `ref_codes` 和 `spk_emb`，推理时作为 Talker 条件输入。</p>
+        <div class="cards">
+          <div class="card"><h3>内置音色</h3><p>来自 `voices.pt`，WebUI 中标为内置。</p></div>
+          <div class="card"><h3>Unseen 音色</h3><p>来自 `voices_unseen.pt`，适合观察零样本迁移。</p></div>
+          <div class="card"><h3>手动克隆</h3><p>`webui/web_demo.py` 可上传参考音频，生成 `voice_clone.pt`。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="gradio">
+        <h2>Gradio WebUI</h2>
+        <p>`scripts/web_demo_omni.py` 是较直接的 Gradio demo。它会扫描 `scripts/` 目录下的 transformers 模型子目录，所以需要先把模型复制进去。</p>
+        <pre><code class="language-bash">cp -r minimind-3o ./scripts/minimind-3o
+cd scripts
+python web_demo_omni.py --port 8888</code></pre>
+        <p class="muted">这个界面适合快速体验文字、音频、图片和音色选择。</p>
+      </section>
+
+      <section class="section" id="phone">
+        <h2>电话模式 WebUI</h2>
+        <p>`webui/web_demo.py` 加上 `webui/web_demo.html` 提供更完整的实时交互：前端录音、WebSocket 传输、后端 VAD 判断、模型流式回复、Mimi 解码播放，以及用户打断。</p>
+        <figure class="figure">
+          <img src="assets/images/realtime_interaction.jpg" alt="实时交互示意">
+          <figcaption>实时交互的状态在 listening、prefill、speaking、interrupt 之间切换。</figcaption>
+        </figure>
+        <pre><code class="language-bash">cd webui
+python web_demo.py --port 8888</code></pre>
+      </section>
+
+      <section class="section" id="vad">
+        <h2>实时打断如何工作</h2>
+        <p>`RealtimeSession` 是纯工程层，不耦合模型权重。它用 Silero VAD 对 16 kHz 音频块打分：检测到足够长的语音后进入 speaking；静音持续到阈值后返回 speech_end；如果模型正在 generating 且用户又开始 speaking，就返回 interrupt。</p>
+        <pre><code class="language-text">listening
+  ├─ speech probability > threshold → speaking
+  ├─ silence long enough → speech_end
+  └─ speaking while generating → interrupt</code></pre>
+      </section>
+
+      <nav class="pager" aria-label="翻页">
+        <a href="data-training.html"><span>上一页</span><strong>数据与训练</strong></a>
+        <a class="next" href="experiments.html"><span>下一页</span><strong>实验进阶</strong></a>
+      </nav>
+    </article>
+
+    <aside class="toc" aria-label="本页目录">
+      <strong>本页目录</strong>
+      <a href="#cli">命令行推理</a>
+      <a href="#text-audio">文本与语音输出</a>
+      <a href="#audio-image">语音与图像输入</a>
+      <a href="#voice">音色选择</a>
+      <a href="#gradio">Gradio WebUI</a>
+      <a href="#phone">电话模式</a>
+      <a href="#vad">实时打断</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">推理入口：`eval_omni.py`、`scripts/web_demo_omni.py`、`webui/web_demo.py`。</div></footer>
+</body>
+</html>

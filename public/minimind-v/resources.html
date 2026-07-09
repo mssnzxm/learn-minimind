@@ -1,0 +1,129 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>资料索引 - MiniMind-V 学习教程</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-shell">
+      <a class="brand" href="index.html"><img src="assets/images/logo.png" alt="MiniMind-V 标志"><span>MiniMind-V 教程</span></a>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="index.html">首页</a>
+        <a href="foundations.html">基础知识</a>
+        <a href="architecture.html">模型架构</a>
+        <a href="data.html">数据流程</a>
+        <a href="training.html">训练复现</a>
+        <a href="inference.html">推理部署</a>
+        <a href="code-map.html">代码导览</a>
+        <a href="experiments.html">实验评估</a>
+        <a href="resources.html">资料索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="page-hero-inner">
+      <p class="eyebrow">Resources</p>
+      <h1>继续学习的资料索引</h1>
+      <p class="lead">这里整理本教程使用的仓库、模型、数据集、论文和实践清单。先读官方 README，再按自己薄弱的环节补概念。</p>
+    </div>
+  </section>
+
+  <main class="layout two-column">
+    <article class="article">
+      <section id="official" class="section">
+        <h2>1. MiniMind-V 官方资料</h2>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>仓库与 README</h3>
+            <p><a href="https://github.com/jingyaogong/minimind-v">GitHub: jingyaogong/minimind-v</a></p>
+            <p>项目介绍、快速开始、模型细节、数据集、训练与评估都在 README 中。</p>
+          </div>
+          <div class="card">
+            <h3>模型合集</h3>
+            <p><a href="https://huggingface.co/collections/jingyaogong/minimind-v-67000833fb60b3a2e1f3597d">HuggingFace MiniMind-V Collection</a></p>
+            <p><a href="https://modelscope.cn/collections/MiniMind-V-42b841dde22d41">ModelScope MiniMind-V Collection</a></p>
+          </div>
+          <div class="card">
+            <h3>PyTorch 权重</h3>
+            <p><a href="https://huggingface.co/jingyaogong/minimind-3v-pytorch">HuggingFace: minimind-3v-pytorch</a></p>
+            <p><a href="https://www.modelscope.cn/models/gongjy/minimind-3v-pytorch">ModelScope: minimind-3v-pytorch</a></p>
+          </div>
+          <div class="card">
+            <h3>在线体验</h3>
+            <p><a href="https://www.modelscope.cn/studios/gongjy/MiniMind-V">ModelScope Studio: MiniMind-V</a></p>
+            <p>适合先感受模型能力，再回到本地理解实现。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="models" class="section">
+        <h2>2. 关键外部组件</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>组件</th><th>链接</th><th>在项目中的作用</th></tr></thead>
+            <tbody>
+              <tr><td>MiniMind</td><td><a href="https://github.com/jingyaogong/minimind">GitHub: minimind</a></td><td>语言模型底座来源。</td></tr>
+              <tr><td>SigLIP2 视觉编码器</td><td><a href="https://huggingface.co/jingyaogong/siglip2-base-p32-256-ve">HF: siglip2-base-p32-256-ve</a></td><td>冻结的图片特征提取器。</td></tr>
+              <tr><td>MiniMind-V 数据集</td><td><a href="https://huggingface.co/datasets/jingyaogong/minimind-v_dataset">HF: minimind-v_dataset</a></td><td>整理后的 parquet 训练数据。</td></tr>
+              <tr><td>ALLaVA-4V</td><td><a href="https://huggingface.co/datasets/FreedomIntelligence/ALLaVA-4V">HF: ALLaVA-4V</a></td><td>README 记录的图文数据来源。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="papers" class="section">
+        <h2>3. 推荐论文和项目</h2>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>LLaVA</h3>
+            <p><a href="https://arxiv.org/abs/2304.08485">Visual Instruction Tuning</a></p>
+            <p>理解视觉指令微调和“视觉特征 + 语言模型”的经典范式。</p>
+          </div>
+          <div class="card">
+            <h3>LLaVA-1.5</h3>
+            <p><a href="https://arxiv.org/abs/2310.03744">Improved Baselines with Visual Instruction Tuning</a></p>
+            <p>两层 MLP projector 是 MiniMind-V README 对齐方案的重要参照。</p>
+          </div>
+          <div class="card">
+            <h3>SigLIP2</h3>
+            <p><a href="https://arxiv.org/abs/2502.14786">SigLIP 2: Multilingual Vision-Language Encoders</a></p>
+            <p>理解当前视觉编码器背后的多语言图文表示学习。</p>
+          </div>
+          <div class="card">
+            <h3>Transformers 文档</h3>
+            <p><a href="https://huggingface.co/docs/transformers/index">HuggingFace Transformers</a></p>
+            <p>补齐 AutoModel、tokenizer、generation、save_pretrained 等工程接口。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="checklist" class="section">
+        <h2>4. 学习检查清单</h2>
+        <ul>
+          <li>能解释为什么 256×256 和 P32 会产生 64 个视觉 token。</li>
+          <li>能画出 <code>&lt;image&gt;</code> 到 <code>&lt;|image_pad|&gt;</code> 再到 visual embedding 的路径。</li>
+          <li>能说明 Pretrain 和 SFT 的目标、数据、学习率、冻结策略差异。</li>
+          <li>能在代码里找到 labels 中 <code>-100</code> 的生成逻辑。</li>
+          <li>能独立运行 <code>eval_vlm.py</code>，并解释 native PyTorch 与 Transformers 加载路径。</li>
+          <li>能提出一个 ablation 实验，并说清楚要观察哪些指标。</li>
+        </ul>
+      </section>
+    </article>
+
+    <aside class="toc">
+      <p class="toc-title">本页目录</p>
+      <a href="#official">官方资料</a>
+      <a href="#models">外部组件</a>
+      <a href="#papers">论文项目</a>
+      <a href="#checklist">检查清单</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">教程站点覆盖了基础、架构、数据、训练、推理、代码和实验七条主线。</div></footer>
+</body>
+</html>

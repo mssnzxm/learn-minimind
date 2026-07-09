@@ -1,0 +1,125 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniMind-O 学习教程 | 基础知识</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/images/logo.png" alt="MiniMind-O logo">
+        <span><strong>MiniMind-O 教程</strong><span>从项目代码读懂端到端 Omni</span></span>
+      </a>
+      <nav class="main-nav" aria-label="主导航">
+        <a href="index.html">路线</a>
+        <a href="foundations.html">基础</a>
+        <a href="setup.html">环境</a>
+        <a href="architecture.html">架构</a>
+        <a href="data-training.html">数据训练</a>
+        <a href="inference-webui.html">推理交互</a>
+        <a href="experiments.html">实验进阶</a>
+        <a href="references.html">参考</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/jingyaogong/minimind-o" title="GitHub 源仓库"><i data-lucide="github"></i>源码</a>
+        <a class="icon-button" href="http://arxiv.org/abs/2605.03937" title="技术报告"><i data-lucide="file-text"></i>报告</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page content-grid">
+    <article class="article">
+      <section class="page-title">
+        <span class="eyebrow">Foundations</span>
+        <h1>基础知识</h1>
+        <p>MiniMind-O 之所以适合学习，是因为它把语言、语音、图像、音色和实时交互都压进了一个足够小的代码对象。先把术语捋顺，后面读源码会轻很多。</p>
+      </section>
+
+      <section class="section" id="omni">
+        <h2>Omni 到底是什么</h2>
+        <p>在这个项目里，Omni 指一个模型系统同时处理文本、语音和图像输入，并输出文本和流式语音。它不是把语音识别、语言模型、语音合成三个独立服务简单串起来，而是让语音特征、图像特征和文本 token 进入同一条建模链路。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>路线</th><th>输入处理</th><th>优点</th><th>代价</th></tr></thead>
+            <tbody>
+              <tr><td>级联系统</td><td>语音先转文字，再由 LLM 生成文字，最后 TTS 合成语音。</td><td>工程清晰，组件容易替换。</td><td>转写会丢掉语气、停顿、音色等信息，延迟也更高。</td></tr>
+              <tr><td>MiniMind-O</td><td>语音和图像经 encoder/projector 注入语言隐空间，Talker 从 Thinker 中间表征生成音频 codes。</td><td>更接近端到端，能学习语义到语音的统一条件。</td><td>训练数据、序列格式和解码调度更复杂。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="language">
+        <h2>语言模型底座</h2>
+        <p>MiniMind-O 继承 MiniMind 的 Transformer 主干。你需要知道四个基础件：</p>
+        <div class="cards two">
+          <div class="card"><h3>Tokenizer</h3><p>把文本切成 token id。仓库里的 `model/tokenizer.json` 和 `model/tokenizer_config.json` 决定特殊 token、chat template 和词表。</p></div>
+          <div class="card"><h3>Transformer Block</h3><p>由注意力、前馈层、RMSNorm、RoPE 等组成。代码入口在 `model/model_minimind.py`。</p></div>
+          <div class="card"><h3>Next Token Prediction</h3><p>Thinker 仍然预测下一个文本 token，训练时只对 assistant 回复区间计算文本 loss。</p></div>
+          <div class="card"><h3>MoE 变体</h3><p>`use_moe=1` 会启用稀疏专家结构，发布模型包括 dense 和 MoE 两条线。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="audio">
+        <h2>语音基础</h2>
+        <p>MiniMind-O 的音频链路由三类概念组成：输入理解、输出编码、实时交互。</p>
+        <div class="cards">
+          <div class="card"><h3>SenseVoice-Small</h3><p>冻结的语音 encoder，把 16 kHz 输入语音变成隐藏特征，再由 `MMAudioProjector` 映射到语言隐空间。</p></div>
+          <div class="card"><h3>Mimi Codec</h3><p>冻结的音频编解码器。Talker 不直接生成波形，而是生成 8 层 Mimi codebook 序列，再解码为 24 kHz 音频。</p></div>
+          <div class="card"><h3>VAD</h3><p>Voice Activity Detection。仓库用 Silero VAD 判断用户开始/结束说话，并支持生成时打断。</p></div>
+        </div>
+        <div class="callout">
+          <strong>理解 codebook：</strong>可以把 Mimi codes 看成音频的离散 token。文本 token 代表词片段，audio code 代表短时间内的声学状态；MiniMind-O 的 Talker 负责预测这些声学 token。
+        </div>
+      </section>
+
+      <section class="section" id="vision">
+        <h2>图像基础</h2>
+        <p>视觉侧使用 SigLIP2 作为冻结 encoder。图像统一处理为 256×256，编码成 64 个 patch token 的视觉表征，再由 <code>MMVisionProjector</code> 映射到 Thinker 隐空间。训练数据里 <code>&lt;image&gt;</code> 会被替换成连续的 <code>&lt;|image_pad|&gt;</code> 占位符，模型在这些位置接收真实视觉特征。</p>
+        <figure class="figure">
+          <img src="assets/images/input_token_layout.jpg" alt="输入 token 布局">
+          <figcaption>文本、音频、图像和音色条件在输入序列中的布局示意。</figcaption>
+        </figure>
+      </section>
+
+      <section class="section" id="training-terms">
+        <h2>训练术语</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>术语</th><th>在项目里的含义</th><th>代码线索</th></tr></thead>
+            <tbody>
+              <tr><td>SFT</td><td>监督微调。用对话、音频 codes、图像字段把模型调成可交互形态。</td><td>`trainer/train_sft_omni.py`</td></tr>
+              <tr><td>T2A</td><td>Text-to-Audio，文本输入，输出文本和语音。</td><td>`sft_t2a*.parquet`</td></tr>
+              <tr><td>A2A</td><td>Audio-to-Audio，语音输入，输出文本和语音。</td><td>`question_audios` / `answer_audios`</td></tr>
+              <tr><td>I2T/I2A</td><td>图像输入，Thinker 生成文本，Talker 可继续渲染语音。</td><td><code>image_bytes</code> / <code>&lt;image&gt;</code></td></tr>
+              <tr><td>MTP</td><td>Multi-Token Prediction。Talker 同步预测多层 audio codebook。</td><td>`TalkerHead` 8 个输出头</td></tr>
+              <tr><td>Bridge Layer</td><td>Thinker 中间层传给 Talker 的语义条件，默认 `num_hidden_layers // 2 - 1`。</td><td>`OmniConfig.bridge_layer`</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <nav class="pager" aria-label="翻页">
+        <a href="index.html"><span>上一页</span><strong>路线总览</strong></a>
+        <a class="next" href="setup.html"><span>下一页</span><strong>环境与资源</strong></a>
+      </nav>
+    </article>
+
+    <aside class="toc" aria-label="本页目录">
+      <strong>本页目录</strong>
+      <a href="#omni">Omni 是什么</a>
+      <a href="#language">语言模型底座</a>
+      <a href="#audio">语音基础</a>
+      <a href="#vision">图像基础</a>
+      <a href="#training-terms">训练术语</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">建议先读完本页，再打开 `model/model_omni.py` 对照架构页。</div></footer>
+</body>
+</html>

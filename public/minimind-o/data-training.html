@@ -1,0 +1,171 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniMind-O 学习教程 | 数据与训练</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/images/logo.png" alt="MiniMind-O logo">
+        <span><strong>MiniMind-O 教程</strong><span>从项目代码读懂端到端 Omni</span></span>
+      </a>
+      <nav class="main-nav" aria-label="主导航">
+        <a href="index.html">路线</a>
+        <a href="foundations.html">基础</a>
+        <a href="setup.html">环境</a>
+        <a href="architecture.html">架构</a>
+        <a href="data-training.html">数据训练</a>
+        <a href="inference-webui.html">推理交互</a>
+        <a href="experiments.html">实验进阶</a>
+        <a href="references.html">参考</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/jingyaogong/minimind-o" title="GitHub 源仓库"><i data-lucide="github"></i>源码</a>
+        <a class="icon-button" href="http://arxiv.org/abs/2605.03937" title="技术报告"><i data-lucide="file-text"></i>报告</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page content-grid">
+    <article class="article">
+      <section class="page-title">
+        <span class="eyebrow">Data & Training</span>
+        <h1>数据与训练</h1>
+        <p>MiniMind-O 的训练难点不只在模型结构，还在样本如何同时承载文本 token、音频 codes、图像占位和音色条件。本页从 `OmniDataset` 到 `train_sft_omni.py` 串起完整链路。</p>
+      </section>
+
+      <section class="section" id="datasets">
+        <h2>数据集组成</h2>
+        <p>项目提供 mini 与 full 两套训练数据。mini 用来低成本跑通链路；full 对应发布权重，覆盖中英文 T2A/A2A 和图像任务。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>子集</th><th>任务</th><th>适合目标</th><th>注意点</th></tr></thead>
+            <tbody>
+              <tr><td>`sft_t2a_mini`</td><td>英文文本到语音</td><td>先让 Talker 学会从文本语义生成音频 codes。</td><td>不用于复现中文能力。</td></tr>
+              <tr><td>`sft_a2a_mini`</td><td>英文语音到语音</td><td>接入语音输入和音频 projector。</td><td>训练规模小，适合链路验证。</td></tr>
+              <tr><td>`sft_t2a`</td><td>中英文 T2A</td><td>发布权重主训练源之一。</td><td>数据量更大，耗时更长。</td></tr>
+              <tr><td>`sft_a2a`</td><td>中英文 A2A</td><td>训练语音输入、音色和 Talker 稳定性。</td><td>需要更稳的资源和调参。</td></tr>
+              <tr><td>`sft_i2t`</td><td>图像指令</td><td>对齐视觉 projector。</td><td>常用 `vision_proj` 模式先单独对齐。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="schema">
+        <h2>Parquet 字段</h2>
+        <p>`dataset/omni_dataset.py` 会读取一个或多个 parquet，并统一拼成 PyArrow table。常见字段如下：</p>
+        <div class="cards two">
+          <div class="card"><h3>`conversations`</h3><p>JSON 字符串，对话轮次。会经过 chat template 生成文本 prompt。</p></div>
+          <div class="card"><h3><code>question_audios</code></h3><p>用户语音输入，转成 SenseVoice fbank 后注入 <code>&lt;|audio_pad|&gt;</code> 段。</p></div>
+          <div class="card"><h3>`answer_audios`</h3><p>assistant 语音答案的 Mimi codes，拆成 8 层作为 Talker target。</p></div>
+          <div class="card"><h3>`image_bytes`</h3><p>图像二进制，进入 SigLIP2 processor。</p></div>
+          <div class="card"><h3>`ref_audios`</h3><p>参考音色 codes，训练时右对齐放到 assistant 起点前。</p></div>
+          <div class="card"><h3>`spk_emb`</h3><p>192 维 speaker embedding，放在 `audio_spk_token` 位置。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="sequence">
+        <h2>样本如何变成 9 路序列</h2>
+        <figure class="figure">
+          <img src="assets/images/training_pipeline.jpg" alt="MiniMind-O 训练流程">
+          <figcaption>训练管线：文本、音频、图像、音色条件被组织为统一样本，再送入 Thinker/Talker。</figcaption>
+        </figure>
+        <pre><code class="language-text">OmniDataset.__getitem__
+  ├─ 读取 conversations / audio / image / voice fields
+  ├─ 生成 chat prompt，按需要插入 audio/image 占位符
+  ├─ tokenization，padding 到 max_length
+  ├─ generate_text_labels，只训练最后一个 assistant 回复
+  ├─ answer_audios 拆成 8 层 audio targets
+  ├─ ref_codes 与 speaker token 放在 assistant 起点前
+  ├─ X_audio = Y_audio_layers[:-1]
+  ├─ X_text = input_ids[:-1]
+  └─ input_ids = concat(8 audio streams, 1 text stream)</code></pre>
+        <div class="callout">
+          <strong>为什么只训练最后一轮：</strong>数据集中可能有多轮对话。代码会保留上下文，但把前面 assistant 的 label mask 成 `-100`，重点训练当前回复。
+        </div>
+      </section>
+
+      <section class="section" id="loss">
+        <h2>训练 loss</h2>
+        <p>`train_epoch` 里同时计算文本 loss 和音频 loss。文本 logits 对 `labels` 做交叉熵；8 路音频 logits 分别对 `audio_labels` 做交叉熵后平均。`audio_stop_token` 的 loss 权重更高，用来帮助 Talker 学会停止。</p>
+        <div class="cards">
+          <div class="card"><h3>Text Loss</h3><p>只对 assistant 区间有效，其他位置是 `-100`。</p></div>
+          <div class="card"><h3>Audio Loss</h3><p>8 个 codebook head 分层计算，最后取平均。</p></div>
+          <div class="card"><h3>Aux Loss</h3><p>MoE 场景加入专家负载相关辅助 loss；dense 时基本为零。</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="modes">
+        <h2>训练模式</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>参数</th><th>会训练什么</th><th>什么时候用</th></tr></thead>
+            <tbody>
+              <tr><td>`--mode all`</td><td>Thinker、Talker、audio/vision projector 等可训练主体。</td><td>T2A 主训练、A2A 全量继续训练。</td></tr>
+              <tr><td>`--mode audio_proj`</td><td>只训练 `audio_proj`。</td><td>先把语音输入特征对齐到语言隐空间。</td></tr>
+              <tr><td>`--mode vision_proj`</td><td>只训练 `vision_proj`。</td><td>接入图像任务时，减少对语言和语音能力的扰动。</td></tr>
+              <tr><td>`--freeze_backbone last1`</td><td>只保留最后一层等少量参数可训练。</td><td>想做轻量微调时可尝试。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="commands">
+        <h2>mini 训练命令</h2>
+        <p>推荐从 `trainer/` 目录执行，或者直接运行 `cd trainer && bash train.sh`。</p>
+        <pre><code class="language-bash">CUDA_VISIBLE_DEVICES=0 torchrun --master_port 29560 --nproc_per_node 1 train_sft_omni.py \
+  --learning_rate 5e-4 --data_path ../dataset/sft_t2a_mini.parquet \
+  --epochs 1 --batch_size 40 --use_compile 1 --from_weight llm \
+  --save_weight sft_zero --max_seq_len 512 --use_wandb --use_moe 0
+
+CUDA_VISIBLE_DEVICES=0 torchrun --master_port 29560 --nproc_per_node 1 train_sft_omni.py \
+  --learning_rate 5e-4 --data_path ../dataset/sft_a2a_mini.parquet \
+  --epochs 1 --batch_size 40 --use_compile 0 --from_weight sft_zero \
+  --save_weight sft_zero --max_seq_len 640 --mode audio_proj --use_wandb --use_moe 0
+
+CUDA_VISIBLE_DEVICES=0 torchrun --master_port 29560 --nproc_per_node 1 train_sft_omni.py \
+  --learning_rate 2e-5 --data_path ../dataset/sft_a2a_mini.parquet \
+  --epochs 1 --batch_size 16 --use_compile 0 --from_weight sft_zero \
+  --save_weight sft_zero --max_seq_len 768 --use_wandb --use_moe 0</code></pre>
+      </section>
+
+      <section class="section" id="full">
+        <h2>full 管线怎么理解</h2>
+        <p>`trainer/train.sh` 里 full 训练并不是复杂多阶段预训练，而是按能力逐步接入：先 T2A 让 Talker 学说话，再 A2A 接入语音输入，最后 I2T/I2A 接入视觉。Dense 和 MoE 的命令结构一致，区别主要是 `--use_moe`。</p>
+        <figure class="figure">
+          <img src="assets/images/t2a_training_curves.jpg" alt="T2A 训练曲线">
+          <figcaption>T2A 训练曲线用于观察文本到语音阶段的收敛趋势。</figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="assets/images/a2a_training_curves.jpg" alt="A2A 训练曲线">
+          <figcaption>A2A 阶段接入语音输入，对 audio projector 和 Talker 稳定性更敏感。</figcaption>
+        </figure>
+      </section>
+
+      <nav class="pager" aria-label="翻页">
+        <a href="architecture.html"><span>上一页</span><strong>架构精读</strong></a>
+        <a class="next" href="inference-webui.html"><span>下一页</span><strong>推理与交互</strong></a>
+      </nav>
+    </article>
+
+    <aside class="toc" aria-label="本页目录">
+      <strong>本页目录</strong>
+      <a href="#datasets">数据集组成</a>
+      <a href="#schema">Parquet 字段</a>
+      <a href="#sequence">9 路序列</a>
+      <a href="#loss">训练 loss</a>
+      <a href="#modes">训练模式</a>
+      <a href="#commands">mini 命令</a>
+      <a href="#full">full 管线</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">训练入口是 `trainer/train_sft_omni.py`，数据入口是 `dataset/omni_dataset.py`。</div></footer>
+</body>
+</html>

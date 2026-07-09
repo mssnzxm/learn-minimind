@@ -1,0 +1,124 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>代码导览 - MiniMind-V 学习教程</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-shell">
+      <a class="brand" href="index.html"><img src="assets/images/logo.png" alt="MiniMind-V 标志"><span>MiniMind-V 教程</span></a>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="index.html">首页</a>
+        <a href="foundations.html">基础知识</a>
+        <a href="architecture.html">模型架构</a>
+        <a href="data.html">数据流程</a>
+        <a href="training.html">训练复现</a>
+        <a href="inference.html">推理部署</a>
+        <a href="code-map.html">代码导览</a>
+        <a href="experiments.html">实验评估</a>
+        <a href="resources.html">资料索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="page-hero-inner">
+      <p class="eyebrow">Code Map</p>
+      <h1>按文件读懂 MiniMind-V</h1>
+      <p class="lead">这一页把仓库文件和学习任务对应起来。读代码时建议从数据入口开始，再看模型注入图像特征，最后回到训练与推理脚本。</p>
+    </div>
+  </section>
+
+  <main class="layout two-column">
+    <article class="article">
+      <section id="map" class="section">
+        <h2>1. 文件职责</h2>
+        <div class="code-map">
+          <div class="path">model/model_minimind.py</div>
+          <div class="detail">MiniMind 语言模型：配置、RMSNorm、RoPE、Attention、FFN、MoE、Transformer block、CausalLM 和 generate。当前工作区此文件已有未提交改动，教程站点没有修改它。</div>
+          <div class="path">model/model_vlm.py</div>
+          <div class="detail">VLM 扩展：VLMConfig、MMVisionProjector、SigLIP2 加载、图像预处理、视觉 embedding 注入、forward 和 generate 多返回兼容。</div>
+          <div class="path">dataset/lm_dataset.py</div>
+          <div class="detail">parquet 数据读取、聊天模板、图像占位符展开、labels 生成、图像 bytes 转 tensor。</div>
+          <div class="path">trainer/trainer_utils.py</div>
+          <div class="detail">参数统计、学习率、随机种子、DDP 初始化、模型初始化、冻结策略、检查点保存与恢复、collate_fn。</div>
+          <div class="path">trainer/train_pretrain_vlm.py</div>
+          <div class="detail">可选图文对齐阶段，默认只训练 projector，学习率较高，最大序列长度 450。</div>
+          <div class="path">trainer/train_sft_vlm.py</div>
+          <div class="detail">监督微调阶段，默认训练 projector 和 LLM 首尾层，学习率较低，最大序列长度 768。</div>
+          <div class="path">eval_vlm.py</div>
+          <div class="detail">命令行评估入口，支持原生 PyTorch 权重和 Transformers 格式，遍历 eval_images 并输出速度。</div>
+          <div class="path">scripts/web_demo_vlm.py</div>
+          <div class="detail">Gradio WebUI，扫描模型目录、加载模型、处理图片上传、流式生成回答。</div>
+          <div class="path">scripts/convert_vlm.py</div>
+          <div class="detail">原生 PyTorch 与 Transformers 格式互转。</div>
+        </div>
+      </section>
+
+      <section id="read-order" class="section">
+        <h2>2. 推荐阅读顺序</h2>
+        <ol>
+          <li>先读 <code>dataset/lm_dataset.py</code>，确认一个样本如何变成 <code>input_ids, labels, pixel_values</code>。</li>
+          <li>再读 <code>model/model_vlm.py</code>，重点看 <code>forward</code> 和 <code>count_vision_proj</code>。</li>
+          <li>回到 <code>trainer/trainer_utils.py</code>，理解 <code>freeze_llm</code> 三种策略。</li>
+          <li>最后看训练脚本，确认日志、保存、resume、DDP 和 mixed precision。</li>
+        </ol>
+      </section>
+
+      <section id="trace" class="section">
+        <h2>3. 一条样本的调用链</h2>
+        <pre><code class="language-text">DataLoader
+  └─ VLMDataset.__getitem__
+       ├─ create_chat_prompt
+       ├─ tokenizer(prompt)
+       ├─ generate_labels
+       └─ MiniMindVLM.image2tensor
+  └─ vlm_collate_fn
+       └─ train_epoch
+            └─ model(input_ids, labels, pixel_values)
+                 ├─ embed_tokens
+                 ├─ get_image_embeddings
+                 ├─ vision_proj
+                 ├─ count_vision_proj
+                 └─ MiniMind decoder + lm_head + cross_entropy</code></pre>
+      </section>
+
+      <section id="exercises" class="section">
+        <h2>4. 练习题</h2>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>追踪 token</h3>
+            <p>在 <code>VLMDataset.__getitem__</code> 里临时打印 prompt、input_ids 长度、labels 中非 <code>-100</code> 的比例，观察不同样本的监督信号。</p>
+          </div>
+          <div class="card">
+            <h3>比较冻结策略</h3>
+            <p>小规模数据上分别试 <code>freeze_llm=2</code> 和 <code>freeze_llm=1</code>，观察 loss、回答风格和语言能力变化。</p>
+          </div>
+          <div class="card">
+            <h3>改评估 prompt</h3>
+            <p>把 <code>eval_vlm.py</code> 的 prompt 改成细节、位置、数量、颜色类问题，检查模型在哪些场景更容易幻觉。</p>
+          </div>
+          <div class="card">
+            <h3>读 MoE 辅助损失</h3>
+            <p>在 MoE 模式下观察 <code>aux_loss</code> 是否过大，理解 router load balancing 对训练稳定性的意义。</p>
+          </div>
+        </div>
+      </section>
+    </article>
+
+    <aside class="toc">
+      <p class="toc-title">本页目录</p>
+      <a href="#map">文件职责</a>
+      <a href="#read-order">阅读顺序</a>
+      <a href="#trace">调用链</a>
+      <a href="#exercises">练习题</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">读完代码后，去 <a href="experiments.html">实验评估</a> 观察模型行为。</div></footer>
+</body>
+</html>

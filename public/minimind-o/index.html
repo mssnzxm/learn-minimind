@@ -1,0 +1,128 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniMind-O 学习教程 | 路线总览</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/images/logo.png" alt="MiniMind-O logo">
+        <span><strong>MiniMind-O 教程</strong><span>从项目代码读懂端到端 Omni</span></span>
+      </a>
+      <nav class="main-nav" aria-label="主导航">
+        <a href="index.html">路线</a>
+        <a href="foundations.html">基础</a>
+        <a href="setup.html">环境</a>
+        <a href="architecture.html">架构</a>
+        <a href="data-training.html">数据训练</a>
+        <a href="inference-webui.html">推理交互</a>
+        <a href="experiments.html">实验进阶</a>
+        <a href="references.html">参考</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/jingyaogong/minimind-o" title="GitHub 源仓库"><i data-lucide="github"></i>源码</a>
+        <a class="icon-button" href="http://arxiv.org/abs/2605.03937" title="技术报告"><i data-lucide="file-text"></i>报告</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <div>
+        <span class="eyebrow">Learning Path</span>
+        <h1>MiniMind-O 学习教程</h1>
+        <p>这是一套面向动手学习者的多页面教程站：先补齐 Omni、音频 codec、视觉投影、Thinker/Talker 等基础，再沿着本仓库源码完成环境、训练、推理、WebUI 与实验复现。</p>
+        <div class="hero-actions">
+          <a class="primary-button" href="foundations.html"><i data-lucide="book-open"></i>从基础开始</a>
+          <a class="secondary-button" href="architecture.html"><i data-lucide="network"></i>直接看架构</a>
+        </div>
+        <div class="stats">
+          <div class="stat"><strong>0.1B</strong><span>dense 主体量级</span></div>
+          <div class="stat"><strong>9 路</strong><span>8 路音频 + 1 路文本序列</span></div>
+          <div class="stat"><strong>24 kHz</strong><span>Mimi 流式语音输出</span></div>
+          <div class="stat"><strong>mini/full</strong><span>入门与发布权重数据</span></div>
+        </div>
+      </div>
+      <figure class="hero-media">
+        <img src="assets/images/omni_io_flow.png" alt="MiniMind-O 输入输出流程图">
+      </figure>
+    </section>
+
+    <section class="section" id="how-to-read">
+      <h2>怎么读这套教程</h2>
+      <div class="flow">
+        <div class="flow-step"><strong>1. 建概念</strong><span>理解 Omni 和级联 ASR/LLM/TTS 的差异。</span></div>
+        <div class="flow-step"><strong>2. 跑起来</strong><span>准备 SenseVoice、SigLIP2、Mimi、CAMPPlus 与权重。</span></div>
+        <div class="flow-step"><strong>3. 读源码</strong><span>从 `MiniMindOmni.forward` 串起 Thinker 和 Talker。</span></div>
+        <div class="flow-step"><strong>4. 做实验</strong><span>用 mini 数据复现链路，再改训练模式或交互层。</span></div>
+      </div>
+      <p class="muted">每个页面都保留“关键文件”和“下一步”，所以你可以把它当成项目导览，也可以当成课程讲义。</p>
+    </section>
+
+    <section class="section" id="modules">
+      <h2>页面导航</h2>
+      <div class="cards">
+        <a class="card" href="foundations.html">
+          <h3>基础知识</h3>
+          <p>Transformer、token、Mimi codebook、VAD、speaker embedding、projector 与训练术语。</p>
+        </a>
+        <a class="card" href="setup.html">
+          <h3>环境与资源</h3>
+          <p>依赖安装、外部模型下载、目录结构、CLI 与 WebUI 的最小 smoke test。</p>
+        </a>
+        <a class="card" href="architecture.html">
+          <h3>架构精读</h3>
+          <p>Thinker/Talker 双路径、bridge layer、音频/视觉注入、MTP audio head。</p>
+        </a>
+        <a class="card" href="data-training.html">
+          <h3>数据与训练</h3>
+          <p>Parquet 字段、9 路序列、text/audio loss、mini/full 训练管线。</p>
+        </a>
+        <a class="card" href="inference-webui.html">
+          <h3>推理与交互</h3>
+          <p>文本、语音、图像、混合输入、音色克隆、Gradio 与电话模式 WebUI。</p>
+        </a>
+        <a class="card" href="experiments.html">
+          <h3>实验进阶</h3>
+          <p>CER/WER、音色相似度、常见限制、可改造方向和阅读路线。</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="section" id="checklist">
+      <h2>学习检查表</h2>
+      <div class="checklist">
+        <label class="check-item"><input type="checkbox" data-check-id="concepts"><span>能说清楚 MiniMind-O 为什么不是简单的 ASR + LLM + TTS 级联。</span></label>
+        <label class="check-item"><input type="checkbox" data-check-id="resources"><span>已经准备好 `model/SenseVoiceSmall`、`model/mimi`、`model/campplus`、`out/*.pth` 或 transformers 权重。</span></label>
+        <label class="check-item"><input type="checkbox" data-check-id="forward"><span>能沿着 `model/model_omni.py` 的 `forward` 解释音频、图像和文本如何汇合。</span></label>
+        <label class="check-item"><input type="checkbox" data-check-id="train"><span>能区分 `all`、`audio_proj`、`vision_proj` 三种训练模式的作用。</span></label>
+      </div>
+    </section>
+
+    <section class="section" id="sources">
+      <h2>主要资料来源</h2>
+      <div class="source-list">
+        <a href="https://github.com/jingyaogong/minimind-o"><strong>GitHub 仓库</strong><span>代码、README、图片与脚本</span></a>
+        <a href="http://arxiv.org/abs/2605.03937"><strong>技术报告</strong><span>架构、训练与实验结论</span></a>
+        <a href="https://huggingface.co/collections/jingyaogong/minimind-o"><strong>HuggingFace Collection</strong><span>模型与数据入口</span></a>
+        <a href="https://modelscope.cn/studios/gongjy/MiniMind-O"><strong>ModelScope Demo</strong><span>在线体验入口</span></a>
+      </div>
+    </section>
+
+    <nav class="pager" aria-label="下一页">
+      <span></span>
+      <a class="next" href="foundations.html"><span>下一页</span><strong>基础知识</strong></a>
+    </nav>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">MiniMind-O tutorial site generated inside this repository. Content is aligned with the local code snapshot and public project materials.</div>
+  </footer>
+</body>
+</html>

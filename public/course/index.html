@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MiniMind 学习课程</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#overview" aria-label="MiniMind 学习课程">
+          <span class="brand-mark">M</span>
+          <span>
+            <strong>MiniMind 学习课程</strong>
+            <small>从 0 训练到部署的中文课程站</small>
+          </span>
+        </a>
+
+        <div class="route-switch" aria-label="训练路线">
+          <button class="route-button is-active" type="button" data-route="mini">mini 路线</button>
+          <button class="route-button" type="button" data-route="full">完整路线</button>
+        </div>
+
+        <a href="/" style="color:inherit;text-decoration:none;font-size:13px;opacity:.75;white-space:nowrap;" title="返回 MiniMind 大模型教程">← 教程站</a>
+
+        <label class="search-box">
+          <span>搜索</span>
+          <input id="searchInput" type="search" placeholder="阶段、样例、知识点、脚本" autocomplete="off" />
+        </label>
+      </header>
+
+      <section class="course-bar" aria-label="课程导航">
+        <nav id="viewTabs" class="view-tabs" aria-label="页面切换"></nav>
+        <div class="chapter-progress">
+          <div class="chapter-progress-meta">
+            <strong id="progressTitle">课程进度</strong>
+            <span id="progressText">--</span>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <span id="progressFill"></span>
+          </div>
+        </div>
+      </section>
+
+      <main class="layout">
+        <aside class="sidebar" aria-label="目录">
+          <div class="sidebar-header">
+            <span id="sidebarLabel">目录</span>
+            <strong id="sidebarCount">0</strong>
+          </div>
+          <div id="sidebarBody"></div>
+        </aside>
+
+        <section class="content">
+          <section id="summaryPanel" class="summary-panel"></section>
+          <section id="bodyPanel" class="body-panel"></section>
+        </section>
+
+        <aside class="right-rail" aria-label="上下文面板">
+          <div id="railBody" class="rail-stack"></div>
+        </aside>
+      </main>
+    </div>
+
+    <div id="assetModal" class="asset-modal" aria-hidden="true">
+      <div class="asset-modal-backdrop" data-close-modal></div>
+      <div class="asset-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="assetModalTitle">
+        <div class="asset-modal-toolbar">
+          <div>
+            <strong id="assetModalTitle">图片预览</strong>
+            <p id="assetModalBody"></p>
+          </div>
+          <button type="button" class="asset-modal-close" data-close-modal aria-label="关闭预览">×</button>
+        </div>
+        <img id="assetModalImage" alt="" />
+      </div>
+    </div>
+
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

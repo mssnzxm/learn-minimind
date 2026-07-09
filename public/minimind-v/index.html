@@ -1,0 +1,95 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniMind-V 学习教程</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-shell">
+      <a class="brand" href="index.html"><img src="assets/images/logo.png" alt="MiniMind-V 标志"><span>MiniMind-V 教程</span></a>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="index.html">首页</a>
+        <a href="foundations.html">基础知识</a>
+        <a href="architecture.html">模型架构</a>
+        <a href="data.html">数据流程</a>
+        <a href="training.html">训练复现</a>
+        <a href="inference.html">推理部署</a>
+        <a href="code-map.html">代码导览</a>
+        <a href="experiments.html">实验评估</a>
+        <a href="resources.html">资料索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Tiny Vision Language Model From This Repository</p>
+      <h1>MiniMind-V 学习教程</h1>
+      <p class="lead">这套页面把当前仓库的 README、核心代码和官方线上资料整理成一条学习路径：先理解视觉语言模型的底层概念，再沿着数据、模型、训练、推理和评估把 MiniMind-V 跑通、读懂、改动起来。</p>
+      <div class="hero-actions">
+        <a class="button" href="foundations.html">进入基础知识</a>
+        <a class="button secondary" href="architecture.html">查看模型架构</a>
+      </div>
+      <div class="fact-row" aria-label="MiniMind-V 关键事实">
+        <div class="fact"><strong>65M</strong><span>dense 语言主干与投影层规模</span></div>
+        <div class="fact"><strong>64</strong><span>SigLIP2 P32 输出的视觉 token 数</span></div>
+        <div class="fact"><strong>2 阶段</strong><span>可选 Pretrain 与必需 SFT</span></div>
+        <div class="fact"><strong>2026-04-20</strong><span>README 记录的 minimind-3v 发布日</span></div>
+      </div>
+    </div>
+  </section>
+
+  <main class="layout">
+    <section class="section">
+      <h2>学习路线</h2>
+      <div class="grid cols-3">
+        <article class="card">
+          <h3>1. 建立 VLM 直觉</h3>
+          <p>把图像看成另一种 token 流：视觉编码器负责读图，Projector 负责翻译，LLM 继续做下一个 token 预测。</p>
+          <a href="foundations.html">读基础知识</a>
+        </article>
+        <article class="card">
+          <h3>2. 沿代码走一遍</h3>
+          <p>从 <code>VLMDataset</code> 到 <code>MiniMindVLM.forward</code>，看清视觉特征如何替换 64 个 <code>&lt;|image_pad|&gt;</code> 占位符。</p>
+          <a href="architecture.html">看模型架构</a>
+        </article>
+        <article class="card">
+          <h3>3. 复现和实验</h3>
+          <p>下载 SigLIP2、LLM 权重与 parquet 数据，选择直接 SFT 或 Pretrain + SFT，再用评估图片观察 dense 与 MoE 差异。</p>
+          <a href="training.html">看训练复现</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>项目全景</h2>
+      <div class="media-frame">
+        <img src="assets/images/VLM-structure.jpg" alt="MiniMind-V dense 结构图">
+        <p class="caption">MiniMind-V 在 MiniMind 语言模型上增加冻结的视觉编码器和 MLP Projection，把图像 patch token 对齐到文本 token 空间。</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>你会学到什么</h2>
+      <div class="grid cols-2">
+        <div class="callout">
+          <h3>概念</h3>
+          <p>LLM、VLM、token、embedding、ViT patch、SigLIP2、Projector、SFT、MoE、DDP、bf16、断点续训。</p>
+        </div>
+        <div class="callout rust">
+          <h3>实操</h3>
+          <p>下载权重与数据、预览 parquet、启动命令行推理、运行 Gradio WebUI、选择冻结策略、读训练日志和 loss 曲线。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">基于当前仓库与官方公开资料整理，页面文件位于 <code>tutorial-site/</code>。</div>
+  </footer>
+</body>
+</html>

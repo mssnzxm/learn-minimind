@@ -1,0 +1,140 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniMind-O 学习教程 | 源码与参考</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/images/logo.png" alt="MiniMind-O logo">
+        <span><strong>MiniMind-O 教程</strong><span>从项目代码读懂端到端 Omni</span></span>
+      </a>
+      <nav class="main-nav" aria-label="主导航">
+        <a href="index.html">路线</a>
+        <a href="foundations.html">基础</a>
+        <a href="setup.html">环境</a>
+        <a href="architecture.html">架构</a>
+        <a href="data-training.html">数据训练</a>
+        <a href="inference-webui.html">推理交互</a>
+        <a href="experiments.html">实验进阶</a>
+        <a href="references.html">参考</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/jingyaogong/minimind-o" title="GitHub 源仓库"><i data-lucide="github"></i>源码</a>
+        <a class="icon-button" href="http://arxiv.org/abs/2605.03937" title="技术报告"><i data-lucide="file-text"></i>报告</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page content-grid">
+    <article class="article">
+      <section class="page-title">
+        <span class="eyebrow">References</span>
+        <h1>源码与参考</h1>
+        <p>这一页把学习 MiniMind-O 最常用的本地文件、在线资料和术语表集中到一起。读源码时可以常开这个页面当索引。</p>
+      </section>
+
+      <section class="section" id="source-map">
+        <h2>源码地图</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>文件</th><th>建议关注</th><th>学习问题</th></tr></thead>
+            <tbody>
+              <tr><td><a href="https://github.com/jingyaogong/minimind-o/blob/master/model/model_minimind.py">model/model_minimind.py</a></td><td>`MiniMindConfig`、`MiniMindBlock`、`MiniMindForCausalLM`、MoE。</td><td>语言模型主干如何实现？</td></tr>
+              <tr><td><a href="https://github.com/jingyaogong/minimind-o/blob/master/model/model_omni.py">model/model_omni.py</a></td><td>`OmniConfig`、projector、`MiniMindOmni.forward`、`stream_generate`、`RealtimeSession`。</td><td>多模态如何注入？Talker 如何生成 audio codes？</td></tr>
+              <tr><td><a href="https://github.com/jingyaogong/minimind-o/blob/master/dataset/omni_dataset.py">dataset/omni_dataset.py</a></td><td>Parquet 字段、chat prompt、9 路 input_ids、audio labels。</td><td>一个训练样本到底长什么样？</td></tr>
+              <tr><td><a href="https://github.com/jingyaogong/minimind-o/blob/master/trainer/train_sft_omni.py">trainer/train_sft_omni.py</a></td><td>collate、text/audio loss、训练模式、DDP。</td><td>训练循环如何同时优化文本和语音？</td></tr>
+              <tr><td><a href="https://github.com/jingyaogong/minimind-o/blob/master/trainer/trainer_utils.py">trainer/trainer_utils.py</a></td><td>模型初始化、权重加载、checkpoint、学习率。</td><td>从 LLM 权重到 Omni 权重如何衔接？</td></tr>
+              <tr><td><a href="https://github.com/jingyaogong/minimind-o/blob/master/eval_omni.py">eval_omni.py</a></td><td>模型加载、评估模式、Mimi 解码、样例组织。</td><td>怎么快速验证各输入输出路径？</td></tr>
+              <tr><td><a href="https://github.com/jingyaogong/minimind-o/blob/master/scripts/web_demo_omni.py">scripts/web_demo_omni.py</a></td><td>Gradio demo、音色下拉、图像/音频输入。</td><td>怎么做一个简单交互界面？</td></tr>
+              <tr><td><a href="https://github.com/jingyaogong/minimind-o/blob/master/webui/web_demo.py">webui/web_demo.py</a></td><td>Flask/WebSocket、音色克隆、实时 VAD、barge-in。</td><td>电话模式如何组织工程状态？</td></tr>
+              <tr><td><a href="https://github.com/jingyaogong/minimind-o/blob/master/trainer/train.sh">trainer/train.sh</a></td><td>mini/full dense/MoE 训练命令。</td><td>推荐训练顺序是什么？</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="online">
+        <h2>在线资料</h2>
+        <div class="source-list">
+          <a href="https://github.com/jingyaogong/minimind-o"><strong>MiniMind-O GitHub</strong><span>源项目、README、代码和图片</span></a>
+          <a href="http://arxiv.org/abs/2605.03937"><strong>MiniMind-O Technical Report</strong><span>架构、训练、实验说明</span></a>
+          <a href="https://huggingface.co/collections/jingyaogong/minimind-o"><strong>HuggingFace Collection</strong><span>模型、数据、transformers 权重</span></a>
+          <a href="https://huggingface.co/datasets/jingyaogong/minimind-o_dataset"><strong>HuggingFace Dataset</strong><span>mini/full 数据入口</span></a>
+          <a href="https://modelscope.cn/collections/gongjy/MiniMind-O"><strong>ModelScope Collection</strong><span>国内下载入口</span></a>
+          <a href="https://modelscope.cn/studios/gongjy/MiniMind-O"><strong>ModelScope Demo</strong><span>在线体验</span></a>
+          <a href="https://github.com/jingyaogong/minimind"><strong>MiniMind</strong><span>语言模型底座项目</span></a>
+          <a href="https://github.com/jingyaogong/minimind-v"><strong>MiniMind-V</strong><span>视觉多模态前序项目</span></a>
+        </div>
+      </section>
+
+      <section class="section" id="glossary">
+        <h2>术语表</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>术语</th><th>解释</th></tr></thead>
+            <tbody>
+              <tr><td>Thinker</td><td>负责多模态理解和文本生成的 MiniMind 主干。</td></tr>
+              <tr><td>Talker</td><td>负责把 Thinker 的语义条件渲染成 Mimi audio codes 的独立模块。</td></tr>
+              <tr><td>MTP</td><td>Multi-Token Prediction，多 token 预测。这里指同时预测多层 codebook。</td></tr>
+              <tr><td>Mimi codes</td><td>Mimi codec 的离散音频表示，8 层 codebook 共同描述音频帧。</td></tr>
+              <tr><td>Projector</td><td>把外部 encoder 的隐藏维度映射到 MiniMind hidden size 的 MLP。</td></tr>
+              <tr><td>Bridge layer</td><td>Thinker 中间层 hidden states，被 Talker 当作语义条件。</td></tr>
+              <tr><td>VAD</td><td>Voice Activity Detection，用来判断用户是否在说话。</td></tr>
+              <tr><td>Barge-in</td><td>用户在模型说话时再次开口，系统中断当前回复并处理新输入。</td></tr>
+              <tr><td>CER/WER</td><td>字符错误率/词错误率，常用于语音输出内容一致性评估。</td></tr>
+              <tr><td>Speaker embedding</td><td>说话人向量，MiniMind-O 默认用 192 维条件控制音色。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="commands">
+        <h2>常用命令速查</h2>
+        <pre><code class="language-bash"># 安装依赖
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 启动教程网站
+python3 serve.py --port 8765
+
+# 文本/语音/图像全模式评估
+python eval_omni.py --load_from model --weight sft_omni --mode -1 --prompt_lang 2
+
+# Gradio WebUI
+cp -r minimind-3o ./scripts/minimind-3o
+cd scripts && python web_demo_omni.py --port 8888
+
+# mini 训练
+cd trainer && bash train.sh</code></pre>
+      </section>
+
+      <section class="section" id="license">
+        <h2>许可与引用</h2>
+        <p>源项目使用 Apache-2.0 许可证。做公开复现、课程或博客时，建议引用 GitHub 仓库和技术报告，并标明模型、数据和权重来源。</p>
+      </section>
+
+      <nav class="pager" aria-label="翻页">
+        <a href="experiments.html"><span>上一页</span><strong>实验进阶</strong></a>
+        <a class="next" href="index.html"><span>回到</span><strong>路线总览</strong></a>
+      </nav>
+    </article>
+
+    <aside class="toc" aria-label="本页目录">
+      <strong>本页目录</strong>
+      <a href="#source-map">源码地图</a>
+      <a href="#online">在线资料</a>
+      <a href="#glossary">术语表</a>
+      <a href="#commands">命令速查</a>
+      <a href="#license">许可引用</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">这个独立静态站可直接部署到 Cloudflare Pages，也可用 `python3 serve.py` 本地预览。</div></footer>
+</body>
+</html>

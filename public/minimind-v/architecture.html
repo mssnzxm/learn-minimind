@@ -1,0 +1,126 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>模型架构 - MiniMind-V 学习教程</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-shell">
+      <a class="brand" href="index.html"><img src="assets/images/logo.png" alt="MiniMind-V 标志"><span>MiniMind-V 教程</span></a>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="index.html">首页</a>
+        <a href="foundations.html">基础知识</a>
+        <a href="architecture.html">模型架构</a>
+        <a href="data.html">数据流程</a>
+        <a href="training.html">训练复现</a>
+        <a href="inference.html">推理部署</a>
+        <a href="code-map.html">代码导览</a>
+        <a href="experiments.html">实验评估</a>
+        <a href="resources.html">资料索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="page-hero-inner">
+      <p class="eyebrow">Architecture</p>
+      <h1>MiniMind-V 的模型结构</h1>
+      <p class="lead">本页按代码执行顺序拆解：配置、视觉编码器、投影层、占位符替换、Transformer 解码和生成接口。</p>
+    </div>
+  </section>
+
+  <main class="layout two-column">
+    <article class="article">
+      <section id="overview" class="section">
+        <h2>1. 总体结构</h2>
+        <p>MiniMind-V 继承自 <code>MiniMindForCausalLM</code>，没有重写整个语言模型，而是在它前面接入视觉分支。视觉分支输出的 token 和文本 token 在 hidden state 层面融合，后续仍由 MiniMind 的 Transformer 层和 <code>lm_head</code> 完成语言生成。</p>
+        <div class="media-frame">
+          <img src="assets/images/VLM-structure.jpg" alt="MiniMind-V dense 架构图">
+          <p class="caption">Dense 版本：LLM 主干约 64M，Projection 约 1M，视觉编码器冻结不计入训练参数。</p>
+        </div>
+      </section>
+
+      <section id="config" class="section">
+        <h2>2. VLMConfig 增加了什么</h2>
+        <p><code>VLMConfig</code> 继承 <code>MiniMindConfig</code>，只增加和图像有关的字段：</p>
+        <ul>
+          <li><code>image_special_token='&lt;|image_pad|&gt;'</code>：图像占位符最终展开出的特殊 token。</li>
+          <li><code>image_ids=[12]</code>：tokenizer 中图像占位 token 对应的 id。</li>
+          <li><code>image_hidden_size=768</code>：SigLIP2 输出特征维度。</li>
+          <li><code>image_token_len=64</code>：每张图对应 64 个视觉 token。</li>
+        </ul>
+        <pre><code class="language-python">class VLMConfig(MiniMindConfig):
+    model_type = "minimind-v"
+
+    def __init__(self, image_special_token='&lt;|image_pad|&gt;', image_ids=[12], **kwargs):
+        self.image_special_token = image_special_token
+        self.image_ids = image_ids
+        self.image_hidden_size = kwargs.get("image_hidden_size", 768)
+        self.image_token_len = kwargs.get("image_token_len", 64)
+        super().__init__(**kwargs)</code></pre>
+      </section>
+
+      <section id="projector" class="section">
+        <h2>3. Projector 是跨模态对齐层</h2>
+        <p><code>MMVisionProjector</code> 是 LayerNorm 加两层 MLP。它的任务不是“识别图片”，而是把视觉 encoder 的输出映射到 MiniMind hidden size，让视觉 token 能和文本 token 在同一空间交互。</p>
+        <pre><code class="language-python">self.mlp = nn.Sequential(
+    nn.LayerNorm(in_dim),
+    nn.Linear(in_dim, out_dim),
+    nn.GELU(),
+    nn.Linear(out_dim, out_dim),
+)</code></pre>
+        <div class="callout violet">
+          LLaVA-1 使用线性层做对齐，LLaVA-1.5 使用两层 MLP。MiniMind-V README 说明当前版本采用与 LLaVA-1.5 类似的 MLP Projection 方案。
+        </div>
+      </section>
+
+      <section id="forward" class="section">
+        <h2>4. forward 里的关键路径</h2>
+        <div class="flow">
+          <div class="flow-step"><b>文本 embedding</b><code>embed_tokens(input_ids)</code> 得到初始 hidden states。</div>
+          <div class="flow-step"><b>图像 embedding</b><code>SiglipVisionModel</code> 输出 <code>last_hidden_state</code>。</div>
+          <div class="flow-step"><b>投影</b><code>vision_proj</code> 把 64×768 转到 LLM 维度。</div>
+          <div class="flow-step"><b>替换</b><code>count_vision_proj</code> 找到图像 token id 连续段并替换。</div>
+          <div class="flow-step"><b>解码</b>MiniMind 层处理混合后的 hidden states。</div>
+        </div>
+        <p>注意 <code>start_pos == 0</code> 这个条件：带 KV cache 生成时，图像特征只需要在第一步注入，后续 token 生成沿用缓存即可。</p>
+      </section>
+
+      <section id="replacement" class="section">
+        <h2>5. 占位符替换机制</h2>
+        <p><code>count_vision_proj</code> 会扫描每个样本的 token 序列，找到连续的图像 marker。对于第 k 张图，就把对应的视觉 token 张量切进去。这样文本序列长度保持一致，视觉信息却真实进入了 hidden state。</p>
+        <pre><code class="language-text">&lt;|image_pad|&gt; × 64 + "\n请描述图片"
+        ↓
+64 个占位 embedding 被 64 个 visual embedding 替换
+        ↓
+Transformer 接收的是文本 token 与视觉 token 的混合序列</code></pre>
+      </section>
+
+      <section id="moe" class="section">
+        <h2>6. Dense 与 MoE</h2>
+        <p>Dense 版本每个 token 都经过同一套前馈网络。MoE 版本在 FFN 处引入专家路由，总参数更大，但每个 token 只激活部分专家，所以 README 用 <code>200M-A65M</code> 这样的记法区分总参数与激活参数。</p>
+        <div class="media-frame">
+          <img src="assets/images/VLM-structure-moe.jpg" alt="MiniMind-V MoE 架构图">
+          <p class="caption">MoE 版本会额外产生路由辅助损失 <code>aux_loss</code>，训练脚本把它与语言建模 loss 相加。</p>
+        </div>
+      </section>
+    </article>
+
+    <aside class="toc">
+      <p class="toc-title">本页目录</p>
+      <a href="#overview">总体结构</a>
+      <a href="#config">VLMConfig</a>
+      <a href="#projector">Projector</a>
+      <a href="#forward">forward 路径</a>
+      <a href="#replacement">占位替换</a>
+      <a href="#moe">Dense 与 MoE</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">继续阅读 <a href="data.html">数据流程</a>，把架构和训练样本接起来。</div></footer>
+</body>
+</html>

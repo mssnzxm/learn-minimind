@@ -1,0 +1,144 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniMind-O 学习教程 | 环境与资源</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/images/logo.png" alt="MiniMind-O logo">
+        <span><strong>MiniMind-O 教程</strong><span>从项目代码读懂端到端 Omni</span></span>
+      </a>
+      <nav class="main-nav" aria-label="主导航">
+        <a href="index.html">路线</a>
+        <a href="foundations.html">基础</a>
+        <a href="setup.html">环境</a>
+        <a href="architecture.html">架构</a>
+        <a href="data-training.html">数据训练</a>
+        <a href="inference-webui.html">推理交互</a>
+        <a href="experiments.html">实验进阶</a>
+        <a href="references.html">参考</a>
+      </nav>
+      <div class="header-actions">
+        <a class="icon-button" href="https://github.com/jingyaogong/minimind-o" title="GitHub 源仓库"><i data-lucide="github"></i>源码</a>
+        <a class="icon-button" href="http://arxiv.org/abs/2605.03937" title="技术报告"><i data-lucide="file-text"></i>报告</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page content-grid">
+    <article class="article">
+      <section class="page-title">
+        <span class="eyebrow">Setup</span>
+        <h1>环境与资源</h1>
+        <p>MiniMind-O 不是只装 Python 包就能跑。它依赖冻结的语音 encoder、视觉 encoder、音频 codec、speaker encoder，以及训练/推理权重。先把目录摆对，后面的问题会少很多。</p>
+      </section>
+
+      <section class="section" id="requirements">
+        <h2>硬件与软件</h2>
+        <div class="cards">
+          <div class="card"><h3>快速推理</h3><p>CPU 可以尝试文本或小样例，语音/图像推理建议用 CUDA 设备。</p></div>
+          <div class="card"><h3>mini 训练</h3><p>README 给出的参考是单张 RTX 3090 跑通 mini SFT 约 2 小时。</p></div>
+          <div class="card"><h3>full 训练</h3><p>更适合多卡，`trainer/train.sh` 提供 4 卡 dense/MoE 参考管线。</p></div>
+        </div>
+        <pre><code class="language-bash">pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple</code></pre>
+        <p class="muted">`requirements.txt` 包括 datasets、transformers、funasr、onnxruntime、gradio、flask、modelscope 等。Torch/torchvision/torchaudio 通常要按你的 CUDA 版本单独安装。</p>
+      </section>
+
+      <section class="section" id="downloads">
+        <h2>必须下载的资源</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>资源</th><th>放置路径</th><th>作用</th></tr></thead>
+            <tbody>
+              <tr><td>SenseVoice-Small</td><td>`./model/SenseVoiceSmall`</td><td>语音输入 encoder，训练和语音推理都用。</td></tr>
+              <tr><td>SigLIP2 base-p32-256</td><td>`./model/siglip2-base-p32-256-ve`</td><td>图像输入 encoder。</td></tr>
+              <tr><td>Mimi</td><td>`./model/mimi`</td><td>把 Talker 生成的 codes 解码成 24 kHz 音频。</td></tr>
+              <tr><td>CAMPPlus</td><td>`./model/campplus`</td><td>提取 speaker embedding，支持音色条件和克隆。</td></tr>
+              <tr><td>MiniMind LLM 权重</td><td>`./out/llm_768.pth`</td><td>从语言模型底座开始训练 Omni。</td></tr>
+              <tr><td>MiniMind-O 发布权重</td><td>`./out` 或 transformers 目录</td><td>直接运行 `eval_omni.py` 或 WebUI。</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <pre><code class="language-bash">modelscope download --model gongjy/SenseVoiceSmall --local_dir ./model/SenseVoiceSmall
+modelscope download --model gongjy/siglip2-base-p32-256-ve --local_dir ./model/siglip2-base-p32-256-ve
+modelscope download --model gongjy/mimi --local_dir ./model/mimi
+modelscope download --model gongjy/campplus --local_dir ./model/campplus
+modelscope download --model gongjy/minimind-3o-pytorch --local_dir ./out</code></pre>
+      </section>
+
+      <section class="section" id="layout">
+        <h2>推荐目录结构</h2>
+        <pre><code class="language-text">minimind-o/
+├── model/
+│   ├── SenseVoiceSmall/
+│   ├── siglip2-base-p32-256-ve/
+│   ├── mimi/
+│   ├── campplus/
+│   └── speaker/
+├── out/
+│   ├── llm_768.pth
+│   └── sft_omni_768.pth
+├── dataset/
+│   ├── sft_t2a_mini.parquet
+│   ├── sft_a2a_mini.parquet
+│   └── eval_omni/
+└── trainer/</code></pre>
+        <div class="callout warn">
+          <strong>路径很关键：</strong>源码里很多默认路径是相对项目根目录写死的，例如 `./model/mimi`、`./dataset/eval_omni/`、`../model/SenseVoiceSmall`。运行脚本前先确认当前工作目录。
+        </div>
+      </section>
+
+      <section class="section" id="smoke">
+        <h2>最小验证</h2>
+        <h3>启动教程网站</h3>
+        <pre><code class="language-bash">python3 serve.py --port 8765
+# 浏览器访问 http://127.0.0.1:8765/</code></pre>
+        <h3>检查 CUDA</h3>
+        <pre><code class="language-bash">python - <<'PY'
+import torch
+print("cuda:", torch.cuda.is_available())
+print("device:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu")
+PY</code></pre>
+        <h3>命令行推理</h3>
+        <pre><code class="language-bash">python eval_omni.py --load_from model --weight sft_omni --mode 0 --prompt_lang 2</code></pre>
+        <h3>transformers 权重推理</h3>
+        <pre><code class="language-bash">git clone https://huggingface.co/jingyaogong/minimind-3o
+python eval_omni.py --load_from minimind-3o --mode 0</code></pre>
+      </section>
+
+      <section class="section" id="pitfalls">
+        <h2>常见卡点</h2>
+        <div class="cards two">
+          <div class="card"><h3>权重格式混淆</h3><p>`--load_from model` 表示加载原生 PyTorch 权重；传入 transformers 模型目录时会走 `AutoModelForCausalLM.from_pretrained`。</p></div>
+          <div class="card"><h3>WebUI 扫描目录</h3><p>`scripts/web_demo_omni.py` 会扫描 `scripts/` 里的 transformers 模型子目录，README 提醒要先复制模型目录。</p></div>
+          <div class="card"><h3>音频解码失败</h3><p>确认 `model/mimi` 存在，并且生成的 8 路 codes 没有全为空。</p></div>
+          <div class="card"><h3>图像路径缺失</h3><p>图像推理需要 SigLIP2 目录和 `dataset/eval_omni` 下的图片样例。</p></div>
+        </div>
+      </section>
+
+      <nav class="pager" aria-label="翻页">
+        <a href="foundations.html"><span>上一页</span><strong>基础知识</strong></a>
+        <a class="next" href="architecture.html"><span>下一页</span><strong>架构精读</strong></a>
+      </nav>
+    </article>
+
+    <aside class="toc" aria-label="本页目录">
+      <strong>本页目录</strong>
+      <a href="#requirements">硬件与软件</a>
+      <a href="#downloads">资源下载</a>
+      <a href="#layout">目录结构</a>
+      <a href="#smoke">最小验证</a>
+      <a href="#pitfalls">常见卡点</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">完成资源准备后，推荐先跑 `--mode 0` 文本推理，再进入语音和图像路径。</div></footer>
+</body>
+</html>

@@ -1,0 +1,106 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>推理部署 - MiniMind-V 学习教程</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="nav-shell">
+      <a class="brand" href="index.html"><img src="assets/images/logo.png" alt="MiniMind-V 标志"><span>MiniMind-V 教程</span></a>
+      <nav class="site-nav" aria-label="主导航">
+        <a href="index.html">首页</a>
+        <a href="foundations.html">基础知识</a>
+        <a href="architecture.html">模型架构</a>
+        <a href="data.html">数据流程</a>
+        <a href="training.html">训练复现</a>
+        <a href="inference.html">推理部署</a>
+        <a href="code-map.html">代码导览</a>
+        <a href="experiments.html">实验评估</a>
+        <a href="resources.html">资料索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="page-hero-inner">
+      <p class="eyebrow">Inference</p>
+      <h1>命令行、Transformers 与 WebUI</h1>
+      <p class="lead">MiniMind-V 支持原生 PyTorch 权重推理，也可以转换或下载 Transformers 格式模型，用 Gradio WebUI 做交互式图片问答。</p>
+    </div>
+  </section>
+
+  <main class="layout two-column">
+    <article class="article">
+      <section id="weights" class="section">
+        <h2>1. 下载发布权重</h2>
+        <pre><code class="language-bash">modelscope download --model gongjy/minimind-3v-pytorch --local_dir ./out</code></pre>
+        <p>原生 PyTorch 权重放在 <code>out/</code>，视觉编码器仍需要放在 <code>model/siglip2-base-p32-256-ve/</code>。</p>
+      </section>
+
+      <section id="cli" class="section">
+        <h2>2. 命令行推理</h2>
+        <pre><code class="language-bash">python eval_vlm.py --load_from model --weight sft_vlm</code></pre>
+        <p><code>eval_vlm.py</code> 会遍历 <code>dataset/eval_images/</code> 下的图片，使用默认 prompt：</p>
+        <pre><code class="language-text">&lt;image&gt;
+请描述这张图中的主要物体和场景。</code></pre>
+        <p>脚本中 <code>prompt.replace('&lt;image&gt;', image_special_token * image_token_len)</code> 对应教程前面讲过的占位符展开。</p>
+      </section>
+
+      <section id="transformers" class="section">
+        <h2>3. Transformers 格式</h2>
+        <pre><code class="language-bash">git clone https://huggingface.co/jingyaogong/minimind-3v
+python eval_vlm.py --load_from minimind-3v</code></pre>
+        <p>当 <code>--load_from</code> 不是 <code>model</code> 时，脚本走 <code>AutoModelForCausalLM.from_pretrained(..., trust_remote_code=True)</code>，然后补上本地视觉编码器。</p>
+      </section>
+
+      <section id="webui" class="section">
+        <h2>4. 启动 WebUI</h2>
+        <pre><code class="language-bash">cp -r minimind-3v ./scripts/minimind-3v
+cd scripts
+python web_demo_vlm.py</code></pre>
+        <p><code>scripts/web_demo_vlm.py</code> 会扫描 <code>scripts/</code> 下包含权重文件的模型目录，并在界面里提供模型切换。它使用 Gradio 的聊天组件，上传图片后把图像转成 pixel values，再走 <code>model.generate</code>。</p>
+      </section>
+
+      <section id="convert" class="section">
+        <h2>5. 权重格式转换</h2>
+        <p><code>scripts/convert_vlm.py</code> 提供 PyTorch 权重与 Transformers 格式之间的转换。转换到 Transformers 时会注册 <code>VLMConfig</code> 与 <code>MiniMindVLM</code>，保存 tokenizer，并写入必要的 config 字段。</p>
+        <div class="callout">
+          转换前确认路径：脚本默认从 <code>../out/sft_vlm_768_moe.pth</code> 这类文件读取，并依赖 <code>../model/siglip2-base-p32-256-ve</code>。
+        </div>
+      </section>
+
+      <section id="params" class="section">
+        <h2>6. 常用生成参数</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>参数</th><th>默认值</th><th>影响</th></tr></thead>
+            <tbody>
+              <tr><td><code>--max_new_tokens</code></td><td>512</td><td>回答最长生成 token 数。</td></tr>
+              <tr><td><code>--temperature</code></td><td>0.7</td><td>越高越随机，越低越稳定。</td></tr>
+              <tr><td><code>--top_p</code></td><td>0.85</td><td>nucleus sampling 阈值。</td></tr>
+              <tr><td><code>--use_moe</code></td><td>0</td><td>加载 MoE 权重时需要设为 1。</td></tr>
+              <tr><td><code>--open_thinking</code></td><td>0</td><td>是否开启 tokenizer chat template 的 thinking 相关选项。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </article>
+
+    <aside class="toc">
+      <p class="toc-title">本页目录</p>
+      <a href="#weights">下载权重</a>
+      <a href="#cli">命令行推理</a>
+      <a href="#transformers">Transformers</a>
+      <a href="#webui">WebUI</a>
+      <a href="#convert">格式转换</a>
+      <a href="#params">生成参数</a>
+    </aside>
+  </main>
+
+  <footer class="footer"><div class="footer-inner">想继续深入实现细节，可以看 <a href="code-map.html">代码导览</a>。</div></footer>
+</body>
+</html>
