@@ -94,6 +94,62 @@ const exampleUrlByFile = new Map(
     .map((chapter) => [chapter.example, `/examples/${chapter.example.replace(/\.py$/, "")}/`]),
 );
 
+const siteOwner = {
+  publicName: "微信公众号《有机系统》作者",
+  email: "mssnzxm@126.com",
+  updatedAt: "2026年7月10日",
+};
+
+const legalPages = [
+  {
+    slug: "privacy-policy",
+    title: "隐私政策",
+    navLabel: "隐私政策",
+    description: "本站隐私政策，说明 Google 广告 Cookie、第三方广告、联系信息与日志数据的处理方式。",
+  },
+  {
+    slug: "about",
+    title: "关于我们",
+    navLabel: "关于我们",
+    description: "关于 MiniMind 学习教程与微信公众号《有机系统》作者的说明。",
+  },
+  {
+    slug: "contact",
+    title: "联系方式",
+    navLabel: "联系方式",
+    description: "联系微信公众号《有机系统》作者，反馈教程问题、版权问题或合作事项。",
+  },
+  {
+    slug: "disclaimer",
+    title: "免责声明",
+    navLabel: "免责声明",
+    description: "本站内容来源、教程风险、第三方链接、广告与版权免责声明。",
+  },
+];
+
+const topicLinks = [
+  {
+    id: "home",
+    href: "/",
+    label: "总教程",
+  },
+  {
+    id: "course",
+    href: "/course/",
+    label: "课程站",
+  },
+  {
+    id: "minimind-v",
+    href: "/minimind-v/",
+    label: "MiniMind-V",
+  },
+  {
+    id: "minimind-o",
+    href: "/minimind-o/",
+    label: "MiniMind-O",
+  },
+];
+
 marked.setOptions({
   async: false,
   breaks: false,
@@ -107,6 +163,7 @@ await fs.copyFile(path.join(srcDir, "site.css"), path.join(distDir, "assets", "s
 
 await writePage("index.html", renderHomePage());
 await writePage("404.html", renderNotFoundPage());
+await writeLegalPages();
 await writeRobots();
 await writeSitemap();
 await writeChapterPages();
@@ -189,6 +246,15 @@ async function writeExamplePages() {
           toc: [],
         }),
       }),
+    );
+  }
+}
+
+async function writeLegalPages() {
+  for (const page of legalPages) {
+    await writePage(
+      path.join(page.slug, "index.html"),
+      renderLegalPage(page),
     );
   }
 }
@@ -303,6 +369,139 @@ function renderNotFoundPage() {
   });
 }
 
+function renderLegalPage(page) {
+  return renderShell({
+    title: page.title,
+    description: page.description,
+    active: page.slug,
+    body: `
+      <main class="legal-layout">
+        <article class="article legal-article">
+          <div class="article-inner">
+            ${renderLegalContent(page.slug)}
+          </div>
+        </article>
+      </main>
+    `,
+  });
+}
+
+function renderLegalContent(slug) {
+  if (slug === "privacy-policy") {
+    return `
+      <p class="eyebrow">Site Policy</p>
+      <h1>隐私政策</h1>
+      <p class="legal-updated">最后更新：${siteOwner.updatedAt}</p>
+      <p>本隐私政策适用于本站（MiniMind 学习教程及其相关专题页面）。本站由${siteOwner.publicName}整理维护，是个人学习笔记与教程站点，不是 MiniMind、Google 或任何第三方项目的官方网站。</p>
+
+      <h2>我们可能收集的信息</h2>
+      <ul>
+        <li>访问日志：托管服务、防火墙或统计服务可能记录 IP 地址、浏览器类型、访问时间、来源页面、访问路径等基础日志，用于安全、排障和站点维护。</li>
+        <li>主动提交的信息：当你通过电子邮件联系本站时，我们会收到你的邮箱地址、邮件内容以及你主动提供的其他信息。</li>
+        <li>Cookie 与本地存储：本站本身不要求注册登录。若未来启用广告、统计或交互功能，相关服务可能使用 Cookie、本地存储、像素标签或类似技术。</li>
+      </ul>
+
+      <h2>Google 广告 Cookie</h2>
+      <p>本站计划接入 Google AdSense。启用后，Google 作为第三方广告供应商，可能会使用 Cookie 投放广告。Google 使用广告 Cookie，可以根据用户访问本站和互联网上其他网站的情况，为用户投放个性化或非个性化广告。</p>
+      <p>第三方广告供应商和广告网络也可能使用 Cookie、JavaScript、网络信标或类似技术来衡量广告效果、限制广告展示频次并展示更相关的广告。本站无法直接控制这些第三方 Cookie 的具体设置。</p>
+      <p>你可以访问 <a href="https://myadcenter.google.com/" rel="noopener">Google 我的广告中心</a> 管理个性化广告设置，也可以阅读 <a href="https://policies.google.com/technologies/ads?hl=zh-CN" rel="noopener">Google 广告技术说明</a>了解 Google 如何使用 Cookie 投放广告。</p>
+
+      <h2>Consent 与地区要求</h2>
+      <p>如果本站向欧洲经济区、英国、瑞士或其他要求事先同意的地区用户展示 Google 广告，我们会根据适用规则使用 Google 认可的同意管理方式，取得必要同意后再使用 Cookie 或本地存储进行个性化广告、广告衡量或相关用途。</p>
+
+      <h2>信息使用方式</h2>
+      <ul>
+        <li>维护、保护和改进本站内容与访问体验。</li>
+        <li>回复你的邮件、处理勘误、版权反馈或合作咨询。</li>
+        <li>在广告启用后，根据 Google AdSense 及相关广告服务规则展示广告、衡量广告效果和防范欺诈。</li>
+      </ul>
+
+      <h2>信息共享</h2>
+      <p>本站不会出售你的个人信息。为托管网站、发送邮件、展示广告、统计访问或满足法律要求，相关信息可能由托管服务商、邮件服务商、Google 等第三方服务提供商按其政策处理。</p>
+
+      <h2>第三方链接</h2>
+      <p>本站教程会引用 GitHub、论文、模型平台、文档站等第三方链接。访问这些网站时，请阅读对方的隐私政策和服务条款；本站不对第三方网站的数据处理行为负责。</p>
+
+      <h2>儿童隐私</h2>
+      <p>本站面向一般技术学习者，不以 13 岁以下儿童为目标用户。如你认为本站不慎收集了儿童个人信息，请通过下方邮箱联系删除。</p>
+
+      <h2>联系我们</h2>
+      <p>隐私相关问题、数据删除请求、广告 Cookie 疑问或政策反馈，可以发送邮件至 <a href="mailto:${siteOwner.email}">${siteOwner.email}</a>。</p>
+    `;
+  }
+
+  if (slug === "about") {
+    return `
+      <p class="eyebrow">About</p>
+      <h1>关于我们</h1>
+      <p class="legal-updated">最后更新：${siteOwner.updatedAt}</p>
+      <p>本站是${siteOwner.publicName}整理的个人学习笔记与教程，主要围绕 MiniMind、MiniMind-V、MiniMind-O 及相关大模型训练、推理、多模态实践内容展开。</p>
+      <p>本站不是 MiniMind 项目、相关模型平台、论文作者或任何第三方机构的官方网站。页面中的项目名称、仓库名称、模型名称和图片资料，仅用于学习、研究、说明与引用。</p>
+
+      <h2>本站定位</h2>
+      <ul>
+        <li>把分散的 README、源码、训练脚本、数据格式和实践步骤整理成更容易阅读的中文教程。</li>
+        <li>保留关键外部资料链接，方便读者继续回到原始项目、论文和文档核对细节。</li>
+        <li>持续修正教程中的表达、步骤和链接，让学习路径更清楚。</li>
+      </ul>
+
+      <h2>作者信息</h2>
+      <p>作者长期通过微信公众号《有机系统》记录技术学习、工程实践和系统思考。本站是这些公开学习资料的一部分，目的是帮助自己和读者更高效地复盘、运行和理解相关项目。</p>
+
+      <h2>联系方式</h2>
+      <p>勘误、版权问题、内容建议或合作沟通，请发送邮件至 <a href="mailto:${siteOwner.email}">${siteOwner.email}</a>。</p>
+    `;
+  }
+
+  if (slug === "contact") {
+    return `
+      <p class="eyebrow">Contact</p>
+      <h1>联系方式</h1>
+      <p class="legal-updated">最后更新：${siteOwner.updatedAt}</p>
+      <p>欢迎通过邮件反馈教程错误、链接失效、版权问题、引用建议或合作事项。</p>
+
+      <h2>邮件联系</h2>
+      <p>邮箱：<a class="contact-link" href="mailto:${siteOwner.email}">${siteOwner.email}</a></p>
+      <p>为了更快定位问题，建议在邮件中写清页面地址、问题位置、期望修改方式，以及必要的截图或原始资料链接。</p>
+
+      <h2>微信公众号</h2>
+      <p>你也可以关注微信公众号《有机系统》，通过公众号文章、留言或相关入口了解作者的更多学习笔记。</p>
+
+      <h2>处理说明</h2>
+      <ul>
+        <li>教程勘误和链接失效会优先处理。</li>
+        <li>版权、署名、转载、删除等请求请附上权利说明和具体页面地址。</li>
+        <li>本站是个人维护项目，回复时间可能受工作与学习安排影响。</li>
+      </ul>
+    `;
+  }
+
+  return `
+    <p class="eyebrow">Disclaimer</p>
+    <h1>免责声明</h1>
+    <p class="legal-updated">最后更新：${siteOwner.updatedAt}</p>
+    <p>本站内容由${siteOwner.publicName}基于公开资料、个人实践和学习记录整理，仅供学习、研究和技术交流参考。</p>
+
+    <h2>非官方网站</h2>
+    <p>本站不是 MiniMind、MiniMind-V、MiniMind-O、Google AdSense、GitHub、Hugging Face、ModelScope 或其他第三方项目与平台的官方网站。相关名称、商标、截图、图片和链接归其各自权利人所有。</p>
+
+    <h2>内容准确性</h2>
+    <p>本站会尽力保持内容准确、清晰和及时，但教程、代码、外部链接、模型版本、依赖版本和平台政策都可能变化。使用前请以原始仓库、官方文档和最新公开资料为准。</p>
+
+    <h2>技术风险</h2>
+    <p>运行本站示例命令、训练脚本、推理程序或第三方项目时，可能产生算力费用、数据损失、环境冲突、安全风险或结果偏差。请在理解命令含义、备份重要数据并评估成本后再执行。</p>
+
+    <h2>广告与第三方服务</h2>
+    <p>本站计划通过 Google AdSense 或其他合规广告服务展示广告。广告内容由第三方广告系统投放，不代表本站立场、推荐或担保。点击广告或访问第三方链接后产生的交易、服务、隐私和安全问题，请以第三方平台规则为准。</p>
+
+    <h2>版权与引用</h2>
+    <p>本站尊重原创与开源协议。如页面内容、图片、代码引用或署名存在问题，请通过 <a href="mailto:${siteOwner.email}">${siteOwner.email}</a> 联系，我们会在核实后及时修正、补充署名或删除相关内容。</p>
+
+    <h2>非专业建议</h2>
+    <p>本站内容不构成法律、财务、投资、医疗或其他专业意见。因使用本站内容造成的直接或间接损失，本站作者不承担相应责任，但会积极处理合理反馈并改进内容。</p>
+  `;
+}
+
 function renderDocLayout({ activeChapter, article, toc }) {
   return `
     <main class="layout">
@@ -323,9 +522,14 @@ function renderDocLayout({ activeChapter, article, toc }) {
           </div>
           <div class="nav-block">
             <p class="nav-title">专题站</p>
-            <a class="site-link" href="/course/">学习课程站<span>训练流程 / 数据样例</span></a>
+            <a class="site-link" href="/">总教程<span>主线章节 / 示例代码</span></a>
+            <a class="site-link" href="/course/">课程站<span>训练流程 / 数据样例</span></a>
             <a class="site-link" href="/minimind-v/">MiniMind-V<span>视觉语言模型专题</span></a>
             <a class="site-link" href="/minimind-o/">MiniMind-O<span>Omni 交互模型专题</span></a>
+          </div>
+          <div class="nav-block">
+            <p class="nav-title">站点信息</p>
+            ${legalPages.map((page) => `<a class="site-link" href="/${page.slug}/">${escapeHtml(page.navLabel)}</a>`).join("")}
           </div>
         </div>
       </aside>
@@ -359,22 +563,53 @@ function renderShell({ title, description, active, body }) {
         <span class="brand-mark">M</span>
         <span>MiniMind 教程<small>系列学习教程</small></span>
       </a>
-      <nav class="topnav" aria-label="主导航">
-        <a class="${active === "home" ? "active" : ""}" href="/">首页</a>
+    </div>
+    <div class="primary-nav-row">
+      ${renderTopicNav(legalPages.some((page) => page.slug === active) ? "" : "home", active)}
+    </div>
+    ${["home", "tutorial", "examples"].includes(active) ? `
+    <div class="section-nav-row">
+      <nav class="section-nav" aria-label="总教程导航">
         <a class="${active === "tutorial" ? "active" : ""}" href="/chapters/01-architecture-overview/">主教程</a>
         <a class="${active === "examples" ? "active" : ""}" href="/examples/02-basic-components-demo/">示例代码</a>
-        <a href="/course/">课程站</a>
-        <a href="/minimind-v/">MiniMind-V</a>
-        <a href="/minimind-o/">MiniMind-O</a>
       </nav>
-    </div>
+    </div>` : ""}
   </header>
   ${body}
   <footer class="footer">
-    <div class="footer-inner">MiniMind 系列学习教程，覆盖模型结构、训练方法、推理生成和多模态实践。</div>
+    <div class="footer-inner">
+      <div>
+        <strong>MiniMind 系列学习教程</strong>
+        <span>由${siteOwner.publicName}整理，覆盖模型结构、训练方法、推理生成和多模态实践；本站不是官方网站。</span>
+      </div>
+      <nav class="footer-links" aria-label="站点信息">
+        ${legalPages.map((page) => `<a href="/${page.slug}/">${escapeHtml(page.navLabel)}</a>`).join("")}
+      </nav>
+    </div>
   </footer>
 </body>
 </html>`;
+}
+
+function renderTopicLinks(activeId = "") {
+  return topicLinks
+    .map((link) => `<a class="${link.id === activeId ? "active" : ""}" href="${link.href}">${escapeHtml(link.label)}</a>`)
+    .join("");
+}
+
+function renderTopicNav(activeId = "", active = "") {
+  return `<nav class="topic-nav" data-topic-nav aria-label="一级导航">${renderTopicLinks(activeId)}${renderSiteInfoMenu(active)}</nav>`;
+}
+
+function renderSiteInfoMenu(active = "") {
+  const isActive = legalPages.some((page) => page.slug === active);
+  return `
+        <details class="site-info-menu ${isActive ? "active" : ""}">
+          <summary>站点信息</summary>
+          <div class="site-info-panel">
+            ${legalPages.map((page) => `<a class="${page.slug === active ? "active" : ""}" href="/${page.slug}/">${escapeHtml(page.navLabel)}</a>`).join("")}
+          </div>
+        </details>`;
 }
 
 function preprocessMarkdown(markdown) {
@@ -434,25 +669,43 @@ function addHeadingAnchors(html) {
 }
 
 async function enhanceCopiedStaticSites() {
-  await enhanceHtmlDirectory(path.join(distDir, "minimind-o"), (html) => {
-    if (html.includes('href="/"') || !html.includes('<div class="header-actions">')) {
+  const addLegalFooter = (html) => {
+    if (html.includes("data-site-legal-links")) {
       return html;
     }
-    return html.replace(
-      '<div class="header-actions">',
-      '<div class="header-actions">\n        <a class="icon-button" href="/" title="返回总教程">总教程</a>\n        <a class="icon-button" href="/minimind-v/" title="打开 MiniMind-V 教程">MiniMind-V</a>',
-    );
+    const links = legalPages.map((page) => `<a href="/${page.slug}/">${escapeHtml(page.navLabel)}</a>`).join("");
+    const legalBar = `
+  <div data-site-legal-links style="border-top:1px solid rgba(120,130,150,.24);background:#fff;padding:14px 16px;text-align:center;font-size:13px;line-height:1.7;color:#667085;">
+    <span>本站由${escapeHtml(siteOwner.publicName)}整理，不是官方网站。</span>
+    <span style="display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-left:12px;">${links}</span>
+  </div>`;
+    return html.replace("</body>", `${legalBar}\n</body>`);
+  };
+
+  await enhanceHtmlDirectory(path.join(distDir, "minimind-o"), (html) => {
+    let next = html;
+    if (!next.includes("data-topic-nav") && next.includes('<div class="header-actions">')) {
+      next = next.replace(
+        '<div class="header-actions">',
+        `${renderTopicNav("minimind-o")}\n      <div class="header-actions">`,
+      );
+    }
+    return addLegalFooter(next);
   });
 
   await enhanceHtmlDirectory(path.join(distDir, "minimind-v"), (html) => {
-    if (html.includes('href="/"') || !html.includes("</nav>")) {
-      return html;
+    let next = html;
+    const headerEnd = "</nav>\n    </div>\n  </header>";
+    if (!next.includes("data-topic-nav") && next.includes(headerEnd)) {
+      next = next.replace(
+        headerEnd,
+        `</nav>\n      ${renderTopicNav("minimind-v")}\n    </div>\n  </header>`,
+      );
     }
-    return html.replace(
-      "</nav>",
-      '        <a href="/minimind-o/">MiniMind-O</a>\n        <a href="/">总教程</a>\n      </nav>',
-    );
+    return addLegalFooter(next);
   });
+
+  await enhanceHtmlDirectory(path.join(distDir, "course"), addLegalFooter);
 }
 
 async function enhanceHtmlDirectory(directory, transform) {
@@ -491,6 +744,7 @@ async function writeSitemap() {
     "/course/",
     "/minimind-v/",
     "/minimind-o/",
+    ...legalPages.map((page) => `/${page.slug}/`),
     ...chapters.map((chapter) => `/chapters/${chapter.slug}/`),
     ...chapters.filter((chapter) => chapter.example).map((chapter) => `/examples/${chapter.example.replace(/\.py$/, "")}/`),
   ];

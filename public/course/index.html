@@ -9,25 +9,45 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <a class="brand" href="#overview" aria-label="MiniMind 学习课程">
-          <span class="brand-mark">M</span>
-          <span>
-            <strong>MiniMind 学习课程</strong>
-            <small>从 0 训练到部署的中文课程站</small>
-          </span>
-        </a>
-
-        <div class="route-switch" aria-label="训练路线">
-          <button class="route-button is-active" type="button" data-route="mini">mini 路线</button>
-          <button class="route-button" type="button" data-route="full">完整路线</button>
+        <div class="brand-row">
+          <a class="brand" href="#overview" aria-label="MiniMind 学习课程">
+            <span class="brand-mark">M</span>
+            <span>
+              <strong>MiniMind 学习课程</strong>
+              <small>从 0 训练到部署的中文课程站</small>
+            </span>
+          </a>
         </div>
 
-        <a href="/" style="color:inherit;text-decoration:none;font-size:13px;opacity:.75;white-space:nowrap;" title="返回 MiniMind 大模型教程">← 教程站</a>
+        <div class="primary-nav-row">
+          <nav class="topic-nav" aria-label="一级导航">
+            <a href="/">总教程</a>
+            <a class="active" href="/course/">课程站</a>
+            <a href="/minimind-v/">MiniMind-V</a>
+            <a href="/minimind-o/">MiniMind-O</a>
+            <details class="site-info-menu">
+              <summary>站点信息</summary>
+              <div class="site-info-panel">
+                <a href="/privacy-policy/">隐私政策</a>
+                <a href="/about/">关于我们</a>
+                <a href="/contact/">联系方式</a>
+                <a href="/disclaimer/">免责声明</a>
+              </div>
+            </details>
+          </nav>
+        </div>
 
-        <label class="search-box">
-          <span>搜索</span>
-          <input id="searchInput" type="search" placeholder="阶段、样例、知识点、脚本" autocomplete="off" />
-        </label>
+        <div class="course-tools-row">
+          <div class="route-switch" aria-label="训练路线">
+            <button class="route-button is-active" type="button" data-route="mini">mini 路线</button>
+            <button class="route-button" type="button" data-route="full">完整路线</button>
+          </div>
+
+          <label class="search-box">
+            <span>搜索</span>
+            <input id="searchInput" type="search" placeholder="阶段、样例、知识点、脚本" autocomplete="off" />
+          </label>
+        </div>
       </header>
 
       <section class="course-bar" aria-label="课程导航">
